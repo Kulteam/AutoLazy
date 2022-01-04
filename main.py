@@ -80,11 +80,11 @@ def Get_link_onedriver(list_link):
      
  
 def Get_link_support_by_youtube_dl(list_link):
-     youtube="(^https:\/\/www.youtube.com|^http:\/\/www.youtube.com|^https:\/\/youtube.com|^http:\/\/youtube.com)(\/watch\?|\/channel/|\/feed\/explore|\/channels|\/c\/|\/user\/)|(https://youtu.be/)"
-     pornhub="((^https:\/\/www.pornhub.com|^http:\/\/www.pornhub.com|^https:\/\/pornhub.com|^http:\/\/pornhub.com)(\/model\/|\/view_video|\/video|\/pornstar|\/channels|\/users|\/playlist|\/albums|\/recommended|\/explore))"
-     facebook="^https://www.facebook.com/(watch|[a-zA-Z0-9]*/videos/)"
+     youtube="(^https?:\/\/(www.)*youtube.com)(\/watch\?|\/channel/|\/feed\/explore|\/channels|\/c\/|\/user\/)|(https://youtu.be/)"
+     pornhub="((^https?:\/\/(www.)*pornhub.com)(\/model\/|\/view_video|\/video|\/pornstar|\/channels|\/users|\/playlist|\/albums|\/recommended|\/explore))"
+     facebook="^https?://(www.)*facebook.com/(watch|[a-zA-Z0-9]*/videos/)"
      bilibili="^https?:\/\/(www.)*bilibili.com(/video/|/[a-zA-Z0-9]*/play/)"
-     google_driver="^https://drive.google.com/file/|^http://drive.google.com/file/"
+     google_driver="^https?://drive.google.com/file/"
      regex="|".join([youtube,pornhub,facebook,bilibili,google_driver])
      r=re.compile(regex)
      link_support_by_youtube_dl = list(filter(r.match,list_link))
