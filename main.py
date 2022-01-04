@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 import requests
 import re
 import random
-import wget
+#import wget
 import time
 import urllib
 from urllib.request import urlretrieve
