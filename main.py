@@ -1,15 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
+from fileinput import filename
 from urllib.request import urlopen 
-from urllib.parse import quote   
+from urllib.parse import quote
+from requests.sessions import session   
 import youtube_dl
 from ntpath import join
 from bs4 import BeautifulSoup
 import requests
 import re
 import random
-#import wget
 import time
 import urllib
 from urllib.request import urlretrieve
@@ -20,6 +21,8 @@ import sys
 import posixpath
 import os
 import locale
+import libtorrent as torrent
+from requests.exceptions import RequestException
 os.environ["PYTHONIOENCODING"] = "utf-8"
 scriptLocale=locale.setlocale(category=locale.LC_ALL, locale="en_GB.UTF-8")
 
@@ -47,10 +50,20 @@ def Get_url_from_file(filename):
       
 
 
-def Get_link_anonfiles_bayfiles(list_link):
-     r=re.compile("^https?://(anonfiles.com|bayfiles.com)")
+def Get_link_anonfiles(list_link):
+     r=re.compile("^https?://anonfiles.com")
      list_link_anonfiles = list(filter(r.match,list_link))
      return list_link_anonfiles
+ 
+def Get_link_bayfiles(list_link):
+     r=re.compile("^https?://bayfiles.com")
+     list_link_bayfiles = list(filter(r.match,list_link))
+     return list_link_bayfiles 
+
+def Get_link_SiaSky(list_link):
+     r=re.compile("^https?://siasky.net")
+     list_link_siasky = list(filter(r.match,list_link))
+     return list_link_siasky
 
 def Get_link_SolidFiles(list_link):
      r=re.compile("^https?:\/\/(www.)*solidfiles.com/v/")
@@ -80,31 +93,55 @@ def Get_link_onedriver(list_link):
      
  
 def Get_link_support_by_youtube_dl(list_link):
-     youtube="(^https?:\/\/(www.)*youtube.com)(\/watch\?|\/channel/|\/feed\/explore|\/channels|\/c\/|\/user\/)|(https://youtu.be/)"
-     pornhub="((^https?:\/\/(www.)*pornhub.com)(\/model\/|\/view_video|\/video|\/pornstar|\/channels|\/users|\/playlist|\/albums|\/recommended|\/explore))"
-     facebook="^https?://(www.)*facebook.com/(watch|[a-zA-Z0-9]*/videos/)"
+     youtube="(^https:\/\/www.youtube.com|^http:\/\/www.youtube.com|^https:\/\/youtube.com|^http:\/\/youtube.com)(\/watch\?|\/channel/|\/feed\/explore|\/channels|\/c\/|\/user\/)|(https://youtu.be/)"
+     pornhub="((^https:\/\/www.pornhub.com|^http:\/\/www.pornhub.com|^https:\/\/pornhub.com|^http:\/\/pornhub.com)(\/model\/|\/view_video|\/video|\/pornstar|\/channels|\/users|\/playlist|\/albums|\/recommended|\/explore))"
+     facebook="^https://www.facebook.com/(watch|[a-zA-Z0-9]*/videos/)"
      bilibili="^https?:\/\/(www.)*bilibili.com(/video/|/[a-zA-Z0-9]*/play/)"
-     google_driver="^https?://drive.google.com/file/"
+     google_driver="^https://drive.google.com/file/|^http://drive.google.com/file/"
      regex="|".join([youtube,pornhub,facebook,bilibili,google_driver])
      r=re.compile(regex)
      link_support_by_youtube_dl = list(filter(r.match,list_link))
      return link_support_by_youtube_dl
            
 
-def Download_from_anonfiles_bayfiles(list_link):
+def Download_from_anonfiles(list_link):
     for link in list_link:  
         req = requests.get(link)
         soup = BeautifulSoup(req.text, "html.parser")
         #print(soup.title)
         for url in soup.findAll('a', attrs={'href': re.compile("^https://cdn-")}):
             link_direct = (url.get('href'))
-            #print(link_direct)
             print("Download file of link: "+link)
             filename=Download_file_from_direct_link(link_direct)
             print("Done download filename: "+filename)
             sleep_time=random.randint(1,5)
             print("Pause until next download for %s s" %sleep_time )
             time.sleep(sleep_time)
+
+def Download_from_bayfiles(list_link):
+    for link in list_link:  
+        req = requests.get(link)
+        soup = BeautifulSoup(req.text, "html.parser")
+    
+        for url in soup.findAll('a', attrs={'href': re.compile("^https://cdn-")}):
+            link_direct = (url.get('href'))
+            print("Download file of link: "+link)
+            filename=Download_file_from_direct_link(link_direct)
+            print("Done download filename: "+filename)
+            sleep_time=random.randint(1,5)
+            print("Pause until next download for %s s" %sleep_time )
+            time.sleep(sleep_time)
+
+def Download_from_SiaSky(list_link):
+    for link in list_link:
+            print("Download file of link: "+link)
+            filename=Download_file_from_direct_link(link)
+            print("Done download filename: "+filename)
+            sleep_time=random.randint(1,5)
+            print("Pause until next download for %s s" %sleep_time )
+            time.sleep(sleep_time)
+         
+            
 
 def Download_from_mediaFire(list_link):
     for link in list_link:  
@@ -113,10 +150,9 @@ def Download_from_mediaFire(list_link):
        # print(soup.title)
         for url in soup.findAll('a', attrs={'href': re.compile("^https?://download")}):
             link_direct = (url.get('href'))
-            #print(link_direct)
+            
             print("Download file of link: "+link)
             filename=Download_file_from_direct_link(link_direct)
-            #filename=wget.download(link_direct)
             print("Done download filename: "+filename)
             sleep_time=random.randint(1,5)
             print("Pause until next download for %s s" %sleep_time )
@@ -167,7 +203,6 @@ def Download_from_OneDriver(list_link):
     for link in direct_links:
         print("Download file of link: "+link)
         filename=Download_file_from_direct_link(link)
-        #filename=wget.download(link)
         print("Done download filename: "+filename)
         sleep_time=random.randint(1,5)
         print("Pause until next download for %s s" %sleep_time )
@@ -192,7 +227,35 @@ def Download_url_support_by_youtube_dl(list_link):
         print("Youtube-dl only support download videos \n Please manually download or try other way If you want download other type file \n" 
               "Host support by this script: \n-Youtube (Only Video)\n-Facebook (Only Video) \n-BiliBili (Only Video)\n-PornHub (Only Video)\n-AnonFiles\n-BayFiles"
               "\n-mediaFire\n-SolidFiles")   
-               
+
+def Download_from_Magnet_link(list_link,path):
+    pass
+
+def Download_file_from_TorrentFile(url):
+    
+    filetorrent=Download_file_from_direct_link(url)
+    ses = torrent.session({'listen_interfaces': '0.0.0.0:6881'})
+
+    info = torrent.torrent_info(filetorrent)
+    h = ses.add_torrent({'ti': info, 'save_path': '.'})
+    s = h.status()
+    print('starting', s.name)
+
+    while (not s.is_seeding):
+        s = h.status()
+        print('\r%.2f%% Complete (Down: %.1f kB/s Up: %.1f kB/s Peers: %d) %s' % (
+            s.progress * 100, s.download_rate / 1000, s.upload_rate / 1000,
+            s.num_peers, s.state), end=' ')
+        alerts = ses.pop_alerts()
+        for a in alerts:
+             if a.category() & torrent.alert.category_t.error_notification:
+                  print(a)
+           
+        sys.stdout.flush()
+        time.sleep(1)
+    print(h.status().name, 'Complete')
+
+                   
 def Get_url_from_string(string):
      regex = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))|(magnet:\?xt=urn:btih:[a-zA-Z0-9]*)"
      url = re.findall(regex,string)      
@@ -200,13 +263,24 @@ def Get_url_from_string(string):
             
 
 def Get_filename_from_url(url):
-    urlpath = urlsplit(url).path
-    basename = posixpath.basename(unquote(urlpath))
-    if (os.path.basename(basename) != basename or
-        unquote(posixpath.basename(urlpath)) != basename):
-        raise ValueError
-    return basename  
-                
+    try:
+        with requests.get(url) as r:
+            filename = ''
+        if "Content-Disposition" in r.headers.keys():
+            filename = re.findall("filename=(.+)", r.headers["Content-Disposition"])[0]
+            filename=filename.replace('"', '')
+        else:
+            urlpath = urlsplit(url).path
+            filename = posixpath.basename(unquote(urlpath))
+            if (os.path.basename(filename) != filename or
+                unquote(posixpath.basename(urlpath)) != filename):
+                raise ValueError
+            return filename
+            
+        return filename
+    except RequestException as error:
+        print(error)
+                    
 def Download_file_from_direct_link(url):
     response = requests.get(url, stream=True)
     total_size_in_bytes= int(response.headers.get('content-length', 0))
@@ -217,24 +291,28 @@ def Download_file_from_direct_link(url):
         for data in response.iter_content(block_size):
             progress_bar.update(len(data))
             file.write(data)
-            
-    
-        
     progress_bar.close()
     
     if total_size_in_bytes != 0 and progress_bar.n != total_size_in_bytes:
         print("ERROR, something went wrong")
         print("Check the direct link again manually please.")
-    return filename    
+    return filename
+    
+
+    
 
 print("Get link from links.txt \n Please wait..")
 list_link = Get_url_from_file("links.txt")
-link_driver=Get_link_onedriver(list_link)
-Download_from_OneDriver(link_driver)
-link_ano=Get_link_anonfiles_bayfiles(list_link)
+#link_driver=Get_link_onedriver(list_link)
+#Download_from_OneDriver(link_driver)
+link_ano=Get_link_anonfiles_bayfiles(link)
 Download_from_anonfiles_bayfiles(link_ano)
-link_solid=Get_link_SolidFiles(list_link)
+link_solid=Get_link_SolidFiles(link)
 Download_from_SolidFiles(link_solid)
+link_media=Get_link_mediaFire(link)
+Download_from_mediaFire(link_media)
+link_youtube_dl=Get_link_support_by_youtube_dl(link)
+Download_url_support_by_youtube_dl(link_youtube_dl)
 
 
 
