@@ -44,7 +44,7 @@ def Get_url_from_file(filename):
     file_link = file.read()
     # findall() has been used 
     # with valid conditions for urls in string
-    regex = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))"
+    regex = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))|magnet:\?xt=urn:btih:[a-zA-Z0-9]*"
     url = re.findall(regex,file_link)      
     return [x[0] for x in url]
       
@@ -77,12 +77,12 @@ def Get_link_mediaFire(list_link):
      list_link_mediaFire = list(filter(r.match,list_link))
      return list_link_mediaFire
  
-def Get_magnet_link(list_link):
-     regex="magnet:\?xt=urn:btih:[a-zA-Z0-9]*"
+def Get_link_torrent(list_link):
+     regex="magnet:\?xt=urn:btih:[a-zA-Z0-9]*|.torrent$"
      r=re.compile(regex)
-     list_magnet_link = list(filter(r.match,list_link))
+     list_link_torrent = list(filter(r.match,list_link))
     
-     return list_magnet_link
+     return list_link_torrent
  
 def Get_link_onedriver(list_link):
     regex="^https?://1drv.ms(/x/|/v/|/w/|/p/|/t/)|^https?://onedrive.live.com/(\?cid|embed\?|view.aspx|\?authkey)"
@@ -93,11 +93,11 @@ def Get_link_onedriver(list_link):
      
  
 def Get_link_support_by_youtube_dl(list_link):
-     youtube="(^https:\/\/www.youtube.com|^http:\/\/www.youtube.com|^https:\/\/youtube.com|^http:\/\/youtube.com)(\/watch\?|\/channel/|\/feed\/explore|\/channels|\/c\/|\/user\/)|(https://youtu.be/)"
-     pornhub="((^https:\/\/www.pornhub.com|^http:\/\/www.pornhub.com|^https:\/\/pornhub.com|^http:\/\/pornhub.com)(\/model\/|\/view_video|\/video|\/pornstar|\/channels|\/users|\/playlist|\/albums|\/recommended|\/explore))"
-     facebook="^https://www.facebook.com/(watch|[a-zA-Z0-9]*/videos/)"
+     youtube="^https?:\/\/(www.)*youtube.com(\/watch\?|\/channel/|\/feed\/explore|\/channels|\/c\/|\/user\/)|(https?://youtu.be/)"
+     pornhub="^https?:\/\/(www.)*pornhub.com(\/model\/|\/view_video|\/video|\/pornstar|\/channels|\/users|\/playlist|\/albums|\/recommended|\/explore)"
+     facebook="^https?:\/\/(www.)*facebook.com/(watch|[a-zA-Z0-9]*/videos/)"
      bilibili="^https?:\/\/(www.)*bilibili.com(/video/|/[a-zA-Z0-9]*/play/)"
-     google_driver="^https://drive.google.com/file/|^http://drive.google.com/file/"
+     google_driver="^https?://drive.google.com/file/"
      regex="|".join([youtube,pornhub,facebook,bilibili,google_driver])
      r=re.compile(regex)
      link_support_by_youtube_dl = list(filter(r.match,list_link))
@@ -176,6 +176,57 @@ def Get_direct_link_SolidFiles(url):
           filetype = jsonString["filetype"]
           return(downloadUrl)
 
+def Download_file_from_MagnetLink(url):
+    session = torrent.session()
+    session.listen_on(6881, 6891)
+    params = {   
+        'save_path': '.',
+        'storage_mode': torrent.storage_mode_t(2),
+       #'paused': False,
+       #'auto_managed': True,
+       #'duplicate_is_error': True
+    
+    }
+    link = url
+    handle = torrent.add_magnet_uri(session, link, params)
+    session.start_dht()
+    print ('Downloading Metadata...')
+    while (not handle.has_metadata()):
+        time.sleep(1)
+    print ('Got metadata, starting torrent download...')
+    while (handle.status().state != torrent.torrent_status.seeding):
+        s = handle.status()
+        state_str = ['queued', 'checking', 'downloading metadata', \
+            'downloading', 'finished', 'seeding', 'allocating']
+        print ('%.2f%% Complete (Down: %.1f kb/s Up: %.1f kB/s Peers: %d) %s' % \
+            (s.progress * 100, s.download_rate / 1000, s.upload_rate / 1000, \
+            s.num_peers, state_str[s.state]))  
+        time.sleep(5)      
+    
+
+def Download_file_from_TorrentFile(url):
+    
+    filetorrent=Download_file_from_direct_link(url)
+    ses = torrent.session({'listen_interfaces': '0.0.0.0:6881'})
+
+    info = torrent.torrent_info(filetorrent)
+    h = ses.add_torrent({'ti': info, 'save_path': '.'})
+    s = h.status()
+    print('starting', s.name)
+
+    while (not s.is_seeding):
+        s = h.status()
+        print('\r%.2f%% Complete (Down: %.1f kB/s Up: %.1f kB/s Peers: %d) %s' % (
+            s.progress * 100, s.download_rate / 1000, s.upload_rate / 1000,
+            s.num_peers, s.state), end=' ')
+        alerts = ses.pop_alerts()
+        for a in alerts:
+             if a.category() & torrent.alert.category_t.error_notification:
+                  print(a)
+           
+        sys.stdout.flush()
+        time.sleep(1)
+    print(h.status().name, 'Complete')
 
 
 def Get_direct_link_onedriver(list_link):
@@ -228,36 +279,23 @@ def Download_url_support_by_youtube_dl(list_link):
               "Host support by this script: \n-Youtube (Only Video)\n-Facebook (Only Video) \n-BiliBili (Only Video)\n-PornHub (Only Video)\n-AnonFiles\n-BayFiles"
               "\n-mediaFire\n-SolidFiles")   
 
-def Download_from_Magnet_link(list_link,path):
-    pass
 
-def Download_file_from_TorrentFile(url):
-    
-    filetorrent=Download_file_from_direct_link(url)
-    ses = torrent.session({'listen_interfaces': '0.0.0.0:6881'})
-
-    info = torrent.torrent_info(filetorrent)
-    h = ses.add_torrent({'ti': info, 'save_path': '.'})
-    s = h.status()
-    print('starting', s.name)
-
-    while (not s.is_seeding):
-        s = h.status()
-        print('\r%.2f%% Complete (Down: %.1f kB/s Up: %.1f kB/s Peers: %d) %s' % (
-            s.progress * 100, s.download_rate / 1000, s.upload_rate / 1000,
-            s.num_peers, s.state), end=' ')
-        alerts = ses.pop_alerts()
-        for a in alerts:
-             if a.category() & torrent.alert.category_t.error_notification:
-                  print(a)
-           
-        sys.stdout.flush()
-        time.sleep(1)
-    print(h.status().name, 'Complete')
-
-                   
+def Download_from_Torrent(list_link):
+    for link in list_link:
+         if 'http' in link :
+             try:
+                 Download_file_from_TorrentFile(link)
+             except:
+                 print("Your url: "+link+"is not support \n Please check! ")
+              
+         elif 'magnet' in link:
+             try:
+                 Download_file_from_MagnetLink(link)
+             except:
+                 print("Your url: "+link+"is not support \n Please check! ")
+                                          
 def Get_url_from_string(string):
-     regex = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))|(magnet:\?xt=urn:btih:[a-zA-Z0-9]*)"
+     regex = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))|magnet:\?xt=urn:btih:[a-zA-Z0-9]*"
      url = re.findall(regex,string)      
      return [x[0] for x in url]
             
@@ -303,17 +341,21 @@ def Download_file_from_direct_link(url):
 
 print("Get link from links.txt \n Please wait..")
 list_link = Get_url_from_file("links.txt")
+#print(list_link)
 #link_driver=Get_link_onedriver(list_link)
 #Download_from_OneDriver(link_driver)
-link_ano=Get_link_anonfiles_bayfiles(link)
-Download_from_anonfiles_bayfiles(link_ano)
-link_solid=Get_link_SolidFiles(link)
-Download_from_SolidFiles(link_solid)
-link_media=Get_link_mediaFire(link)
+#link_ano=Get_link_anonfiles(link)
+#Download_from_anonfiles_bayfiles(link_ano)
+link_media=Get_link_mediaFire(list_link)
 Download_from_mediaFire(link_media)
 link_youtube_dl=Get_link_support_by_youtube_dl(link)
 Download_url_support_by_youtube_dl(link_youtube_dl)
+link_solid=Get_link_SolidFiles(list_link)
+Download_from_SolidFiles(link_solid)
+link_torrent=Get_link_torrent(list_link)
+Download_from_Torrent(link_torrent)
 
+#Download_file_from_MagnetLink("magnet:?xt=urn:btih:69d157a3137e1fa3b62e14f6ece8621ff4aadd64")
 
 
 
