@@ -44,9 +44,11 @@ def Get_url_from_file(filename):
     file_link = file.read()
     # findall() has been used 
     # with valid conditions for urls in string
-    regex = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))|magnet:\?xt=urn:btih:[a-zA-Z0-9]*"
-    url = re.findall(regex,file_link)      
-    return [x[0] for x in url]
+    url = "(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))"
+    magnet = "magnet:\?xt=urn:btih:[a-zA-Z0-9]*"
+    regex=f"({magnet}|{url})"
+    urls = re.findall(regex,file_link)      
+    return [x[0] for x in urls]
       
 
 
@@ -341,20 +343,22 @@ def Download_file_from_direct_link(url):
 
 print("Get link from links.txt \n Please wait..")
 list_link = Get_url_from_file("links.txt")
-#print(list_link)
+print(list_link)
 #link_driver=Get_link_onedriver(list_link)
 #Download_from_OneDriver(link_driver)
-#link_ano=Get_link_anonfiles(link)
+#link_ano=Get_link_anonfiles_bayfiles(link)
 #Download_from_anonfiles_bayfiles(link_ano)
-link_media=Get_link_mediaFire(list_link)
-Download_from_mediaFire(link_media)
-link_youtube_dl=Get_link_support_by_youtube_dl(link)
-Download_url_support_by_youtube_dl(link_youtube_dl)
-link_solid=Get_link_SolidFiles(list_link)
-Download_from_SolidFiles(link_solid)
+#link_solid=Get_link_SolidFiles(list_link)
+#Download_from_SolidFiles(link_solid)
 link_torrent=Get_link_torrent(list_link)
+print(link_torrent)
 Download_from_Torrent(link_torrent)
-
+link_media=Get_link_mediaFire(list_link)
+print(link_media)
+#Download_from_mediaFire(link_media)
+#link_youtube_dl=Get_link_support_by_youtube_dl(link)
+#Download_url_support_by_youtube_dl(link_youtube_dl)
+#Download_file_from_direct_link("https://i.ytimg.com/vi/HdHsnFGJI3E/hqdefault.jpg?sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLCm57M0Ff2T3Eqcgba5NiF8vySR0Q")
 #Download_file_from_MagnetLink("magnet:?xt=urn:btih:69d157a3137e1fa3b62e14f6ece8621ff4aadd64")
 
 
