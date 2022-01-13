@@ -39,16 +39,35 @@ except ImportError: # Python 3
 
 #file_link = file.read()
 
-def Get_url_from_file(filename):
+def Get_urls_from_local_file(filename):
     file =open(filename)
     file_link = file.read()
     # findall() has been used 
     # with valid conditions for urls in string
-    url = "(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))"
+    url = "([\w+]+\:\/\/)?([\w\d-]+\.)*[\w-]+[\.\:]\w+([\/\?\=\&\#.]?[\w-]+)*\/?"
+    magnet = "magnet:\?xt=urn:btih:[a-zA-Z0-9]*"
+    regex=f"({url}|{magnet})"
+    urls = re.findall(regex,file_link)      
+    return [x[0] for x in urls]
+
+def Get_urls_from_string(string):
+    url = "([\w+]+\:\/\/)?([\w\d-]+\.)*[\w-]+[\.\:]\w+([\/\?\=\&\#.]?[\w-]+)*\/?"
+    magnet = "magnet:\?xt=urn:btih:[a-zA-Z0-9]*"
+    regex=f"({magnet}|{url})"
+    urls = re.findall(regex,string)      
+    return [x[0] for x in urls]
+ 
+def Get_urls_from_remote_file(url):
+    filename=Download_file_from_direct_link(url)
+    file =open(filename)
+    file_link = file.read()
+    # findall() has been used 
+    # with valid conditions for urls in string
+    url = "([\w+]+\:\/\/)?([\w\d-]+\.)*[\w-]+[\.\:]\w+([\/\?\=\&\#.]?[\w-]+)*\/?"
     magnet = "magnet:\?xt=urn:btih:[a-zA-Z0-9]*"
     regex=f"({magnet}|{url})"
     urls = re.findall(regex,file_link)      
-    return [x[0] for x in urls]
+    return [x[0] for x in urls] 
       
 
 
@@ -80,7 +99,7 @@ def Get_link_mediaFire(list_link):
      return list_link_mediaFire
  
 def Get_link_torrent(list_link):
-     regex="magnet:\?xt=urn:btih:[a-zA-Z0-9]*|.torrent$"
+     regex="magnet:\?xt=urn:btih:[a-zA-Z0-9]*|https?:\/\/[^\s]+\.torrent"
      r=re.compile(regex)
      list_link_torrent = list(filter(r.match,list_link))
     
@@ -295,11 +314,6 @@ def Download_from_Torrent(list_link):
                  Download_file_from_MagnetLink(link)
              except:
                  print("Your url: "+link+"is not support \n Please check! ")
-                                          
-def Get_url_from_string(string):
-     regex = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))|magnet:\?xt=urn:btih:[a-zA-Z0-9]*"
-     url = re.findall(regex,string)      
-     return [x[0] for x in url]
             
 
 def Get_filename_from_url(url):
@@ -342,24 +356,21 @@ def Download_file_from_direct_link(url):
     
 
 print("Get link from links.txt \n Please wait..")
-list_link = Get_url_from_file("links.txt")
-print(list_link)
-#link_driver=Get_link_onedriver(list_link)
-#Download_from_OneDriver(link_driver)
-#link_ano=Get_link_anonfiles_bayfiles(link)
+list_link = Get_urls_from_local_file("links.txt")
+
+link_driver=Get_link_onedriver(list_link)
+Download_from_OneDriver(link_driver)
+#link_ano=Get_link_Anonfiles_bayfiles(link)
 #Download_from_anonfiles_bayfiles(link_ano)
-#link_solid=Get_link_SolidFiles(list_link)
-#Download_from_SolidFiles(link_solid)
+link_solid=Get_link_SolidFiles(list_link)
+Download_from_SolidFiles(link_solid)
 link_torrent=Get_link_torrent(list_link)
-print(link_torrent)
 Download_from_Torrent(link_torrent)
 link_media=Get_link_mediaFire(list_link)
-print(link_media)
-#Download_from_mediaFire(link_media)
-#link_youtube_dl=Get_link_support_by_youtube_dl(link)
-#Download_url_support_by_youtube_dl(link_youtube_dl)
-#Download_file_from_direct_link("https://i.ytimg.com/vi/HdHsnFGJI3E/hqdefault.jpg?sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLCm57M0Ff2T3Eqcgba5NiF8vySR0Q")
-#Download_file_from_MagnetLink("magnet:?xt=urn:btih:69d157a3137e1fa3b62e14f6ece8621ff4aadd64")
+Download_from_mediaFire(link_media)
+link_youtube_dl=Get_link_support_by_youtube_dl(link)
+Download_url_support_by_youtube_dl(link_youtube_dl)
+
 
 
 
