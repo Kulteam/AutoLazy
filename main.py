@@ -20,11 +20,12 @@ from sys import exit
 import sys
 import posixpath
 import os
-import locale
+import glob
+
+from pathlib import Path
 import libtorrent as torrent
 from requests.exceptions import RequestException
-os.environ["PYTHONIOENCODING"] = "utf-8"
-scriptLocale=locale.setlocale(category=locale.LC_ALL, locale="en_GB.UTF-8")
+
 
 try:
     from urlparse import urlsplit
@@ -48,7 +49,8 @@ def Get_urls_from_local_file(filename):
     magnet = "magnet:\?xt=urn:btih:[a-zA-Z0-9]*"
     regex=f"({url}|{magnet})"
     urls = re.findall(regex,file_link)      
-    return [x[0] for x in urls]
+    return urls
+#[x[0] for x in urls]
 
 def Get_urls_from_string(string):
     url = "([\w+]+\:\/\/)?([\w\d-]+\.)*[\w-]+[\.\:]\w+([\/\?\=\&\#.]?[\w-]+)*\/?"
@@ -58,10 +60,7 @@ def Get_urls_from_string(string):
     return [x[0] for x in urls]
  
 def Get_urls_from_remote_file(url):
-    filename=Download_file_from_direct_link(url)
-    file =open(filename)
-    file_link = file.read()
-    # findall() has been used 
+    file_link = requests.get(url).text
     # with valid conditions for urls in string
     url = "([\w+]+\:\/\/)?([\w\d-]+\.)*[\w-]+[\.\:]\w+([\/\?\=\&\#.]?[\w-]+)*\/?"
     magnet = "magnet:\?xt=urn:btih:[a-zA-Z0-9]*"
@@ -164,7 +163,9 @@ def Download_from_SiaSky(list_link):
          
             
 
-def Download_from_mediaFire(list_link):
+def Download_from_mediaFire(list_link,path_folder="."):
+    list_file=[]
+    list_path_file=[]
     for link in list_link:  
         req = requests.get(link)
         soup = BeautifulSoup(req.text, "html.parser")
@@ -175,10 +176,26 @@ def Download_from_mediaFire(list_link):
             print("Download file of link: "+link)
             filename=Download_file_from_direct_link(link_direct)
             print("Done download filename: "+filename)
+            list_file.append(filename)
             sleep_time=random.randint(1,5)
             print("Pause until next download for %s s" %sleep_time )
-            time.sleep(sleep_time)            
+            time.sleep(sleep_time)   
+            
+    for file in list_file:
+        new_path=path_folder+'/'+file
+        print(new_path)
+        try:
+            Path(file).rename(new_path)
+            list_path_file.append(new_path)
+        except :
+            print("The system cannot find the file specified: "+file+"->"+new_path)
+            
+                     
+    return list_path_file   
+
     
+
+     
 def Get_direct_link_SolidFiles(url):
      headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/36.0.1985.125 Safari/537.36'
@@ -197,11 +214,11 @@ def Get_direct_link_SolidFiles(url):
           filetype = jsonString["filetype"]
           return(downloadUrl)
 
-def Download_file_from_MagnetLink(url):
+def Download_file_from_MagnetLink(url,path_folder="."):
     session = torrent.session()
     session.listen_on(6881, 6891)
     params = {   
-        'save_path': '.',
+        'save_path': path_folder,
         'storage_mode': torrent.storage_mode_t(2),
        #'paused': False,
        #'auto_managed': True,
@@ -223,15 +240,23 @@ def Download_file_from_MagnetLink(url):
             (s.progress * 100, s.download_rate / 1000, s.upload_rate / 1000, \
             s.num_peers, state_str[s.state]))  
         time.sleep(5)      
+    print(handle.status().name, 'Complete')
+    path=(path_folder+'/'+handle.status().name)
+    try:
+        list_path_file=Get_list_files_from_folder(path,".mp4")
+    except :
+        print("Cannot get list files from folder.Something is wrong, please check ! ")
+        
+    return list_path_file
     
 
-def Download_file_from_TorrentFile(url):
+def Download_file_from_TorrentFile(url,path_folder="."):
     
     filetorrent=Download_file_from_direct_link(url)
     ses = torrent.session({'listen_interfaces': '0.0.0.0:6881'})
 
     info = torrent.torrent_info(filetorrent)
-    h = ses.add_torrent({'ti': info, 'save_path': '.'})
+    h = ses.add_torrent({'ti': info, 'save_path': path_folder})
     s = h.status()
     print('starting', s.name)
 
@@ -248,6 +273,14 @@ def Download_file_from_TorrentFile(url):
         sys.stdout.flush()
         time.sleep(1)
     print(h.status().name, 'Complete')
+    path=(path_folder+'/'+h.status().name)
+    try:
+        path_file=Get_list_files_from_folder(path,".mp4")
+    except :
+        print("Cannot get list files from folder.Something is wrong, please check ! ")
+        
+    return path_file
+    
 
 
 def Get_direct_link_onedriver(list_link):
@@ -301,19 +334,21 @@ def Download_url_support_by_youtube_dl(list_link):
               "\n-mediaFire\n-SolidFiles")   
 
 
-def Download_from_Torrent(list_link):
+def Download_from_Torrent(list_link,path_folder="."):
     for link in list_link:
          if 'http' in link :
              try:
-                 Download_file_from_TorrentFile(link)
+                Path_file=Download_file_from_TorrentFile(link,path_folder)
+                return Path_file
              except:
-                 print("Your url: "+link+"is not support \n Please check! ")
+                print("Your url: "+link+" is not support \n Please check! ")
               
          elif 'magnet' in link:
              try:
-                 Download_file_from_MagnetLink(link)
+                Path_file= Download_file_from_MagnetLink(link,path_folder)
+                return Path_file
              except:
-                 print("Your url: "+link+"is not support \n Please check! ")
+                print("Your url: "+link+" is not support \n Please check! ")
             
 
 def Get_filename_from_url(url):
@@ -352,25 +387,53 @@ def Download_file_from_direct_link(url):
         print("Check the direct link again manually please.")
     return filename
     
-
+def Get_list_files_from_folder(path_folder,ext):
+    list_files = []
+    for file in glob.glob(path_folder+"/*"+ext):
+        list_files.append(file)
+    return(list_files)
     
+def Upload_to_DooStream(list_files,api_key):
+    list_results=[]
+    extensions_video_file = ['.mp4','.flv','.h264','.avi','.mkv','.mpeg','.mpg','.mov','.m4v','.3gp','.wmv','.vob']
+    list_path_video = [s for s in list_files if any(xs in s for xs in extensions_video_file)]
+    for path_video in list_path_video:
+        url=('https://doodapi.com/api/upload/server?key='+api_key)
+        r=requests.get(url).text
+        y = json.loads(r)
+        upload_url= (y["result"])
+        data = {
+        "api_key": api_key
+        }
+        files = {
+        "file": (path_video, open(path_video, 'rb')),
+        }
+        url=(upload_url+'?'+api_key)
+        response = requests.post(url, data=data,  files=files)
+        link_embed=json.loads(response.text)
+        
+        print(link_embed["result"])
+        list_results.append(link_embed["result"])
+    return list_results
 
 print("Get link from links.txt \n Please wait..")
-list_link = Get_urls_from_local_file("links.txt")
-
-link_driver=Get_link_onedriver(list_link)
-Download_from_OneDriver(link_driver)
-#link_ano=Get_link_Anonfiles_bayfiles(link)
+#list_link = Get_urls_from_local_file("links.txt")
+#print(list_link)
+#link_driver=Get_link_onedriver(list_link)
+#Download_from_OneDriver(link_driver)
+#link_ano=Get_link_anonfiles_bayfiles(link)
 #Download_from_anonfiles_bayfiles(link_ano)
-link_solid=Get_link_SolidFiles(list_link)
-Download_from_SolidFiles(link_solid)
-link_torrent=Get_link_torrent(list_link)
-Download_from_Torrent(link_torrent)
-link_media=Get_link_mediaFire(list_link)
-Download_from_mediaFire(link_media)
-link_youtube_dl=Get_link_support_by_youtube_dl(link)
-Download_url_support_by_youtube_dl(link_youtube_dl)
+#link_solid=Get_link_SolidFiles(list_link)
+#Download_from_SolidFiles(link_solid)
+#link_torrent=Get_link_torrent(list_link)
+#print(link_torrent)
+#Download_from_Torrent(link_torrent)
+#link_media=Get_link_mediaFire(list_link)
+#print(link_media)
+#Download_from_mediaFire(link_media)
+#link_youtube_dl=Get_link_support_by_youtube_dl(link)
+#Download_url_support_by_youtube_dl(link_youtube_dl)
 
 
-
-
+path_video=Upload_to_DooStream(["D:\Data\Public\Video\\61 comments.mp4","D:\Data\Public\Video\Coming Soon - HYIP.NET Chuyên trang đầu tư tài chính HYIP,MLM và Economic game...mp4"],"83898e7z7wd2f0nv0jb60")
+print(path_video)
