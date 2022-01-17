@@ -410,10 +410,10 @@ def Upload_to_DooStream(list_files,api_key):
         }
         url=(upload_url+'?'+api_key)
         response = requests.post(url, data=data,  files=files)
-        link_embed=json.loads(response.text)
+        result=json.loads(response.text)
         
-        print(link_embed["result"])
-        list_results.append(link_embed["result"])
+        print(result["result"])
+        list_results.append(result["result"])
     return list_results
 
 print("Get link from links.txt \n Please wait..")
