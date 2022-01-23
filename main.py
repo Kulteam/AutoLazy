@@ -21,6 +21,7 @@ import sys
 import posixpath
 import os
 import glob
+import cgi
 
 from pathlib import Path
 import libtorrent as torrent
@@ -155,11 +156,34 @@ def Download_from_bayfiles(list_link):
 def Download_from_SiaSky(list_link):
     for link in list_link:
             print("Download file of link: "+link)
-            filename=Download_file_from_direct_link(link)
-            print("Done download filename: "+filename)
-            sleep_time=random.randint(1,5)
-            print("Pause until next download for %s s" %sleep_time )
-            time.sleep(sleep_time)
+            buffer_size = 1024
+# download the body of response by chunk, not immediately
+            response = requests.get(link, stream=True)
+            file_size = int(response.headers.get("Content-Length", 0))
+          # get the default filename
+            default_filename = link.split("/")[-1]
+            # get the content disposition header
+            content_disposition = response.headers.get("Content-Disposition")
+            if content_disposition:
+                value, params = cgi.parse_header(content_disposition)
+            # extract filename from content disposition
+                filename = params.get("filename", default_filename)
+        
+            # parse the header using cgi
+            else:
+                 filename = default_filename
+       
+           # if content dispotion is not available, just use default from URL
+            progress = tqdm(response.iter_content(buffer_size), f"Downloading {filename}", total=file_size, unit="B", unit_scale=True, unit_divisor=1024)
+            with open(filename, "wb") as f:
+                 for data in progress.iterable:
+                     f.write(data)
+                     # update the progress bar manually
+                     progress.update(len(data)) 
+            return filename
+        
+           
+            
          
             
 
@@ -370,22 +394,6 @@ def Get_filename_from_url(url):
     except RequestException as error:
         print(error)
                     
-def Download_file_from_direct_link(url):
-    response = requests.get(url, stream=True)
-    total_size_in_bytes= int(response.headers.get('content-length', 0))
-    block_size = 1024 #1 Kibibyte
-    progress_bar = tqdm(total=total_size_in_bytes, unit='iB', unit_scale=True)
-    filename=Get_filename_from_url(url)
-    with open(filename, 'wb') as file:
-        for data in response.iter_content(block_size):
-            progress_bar.update(len(data))
-            file.write(data)
-    progress_bar.close()
-    
-    if total_size_in_bytes != 0 and progress_bar.n != total_size_in_bytes:
-        print("ERROR, something went wrong")
-        print("Check the direct link again manually please.")
-    return filename
     
 def Get_list_files_from_folder(path_folder,ext):
     list_files = []
@@ -403,18 +411,40 @@ def Upload_to_DooStream(list_files,api_key):
         y = json.loads(r)
         upload_url= (y["result"])
         data = {
-        "api_key": api_key
+        "api_key": api_key ,'Content-length': str(os.path.getsize(path_video))
         }
         files = {
         "file": (path_video, open(path_video, 'rb')),
         }
         url=(upload_url+'?'+api_key)
-        response = requests.post(url, data=data,  files=files)
-        result=json.loads(response.text)
+        response = requests.post(url, data=data,  files=files,stream=True)
+        #for chunk in response.iter_content(chunk_size=50000):
+        #fd.write(chunk)
         
-        print(result["result"])
-        list_results.append(result["result"])
+        link_embed=json.loads(response.text)
+        
+        print(link_embed["result"])
+        list_results.append(link_embed["result"])
     return list_results
+
+def Download_file_from_direct_link(url):
+    local_filename = Get_filename_from_url(url)
+    # NOTE the stream=True parameter
+    r = requests.get(url, stream=True)
+    total_size_in_bytes= int(r.headers.get('content-length', 0))
+    #block_size = 1024 #1 Kibibyte
+    progress_bar = tqdm(total=total_size_in_bytes, unit='iB', unit_scale=True)
+    with open(local_filename, 'wb') as f:
+        for chunk in r.iter_content(chunk_size=1024): 
+            progress_bar.update(len(chunk))
+            if chunk: # filter out keep-alive new chunks
+                f.write(chunk)
+    
+    progress_bar.close()  
+    if total_size_in_bytes != 0 and progress_bar.n != total_size_in_bytes:
+        print("ERROR, something went wrong")
+        print("Check the direct link again manually please.")#f.flush() commented by recommendation from J.F.Sebastian
+    return local_filename
 
 print("Get link from links.txt \n Please wait..")
 #list_link = Get_urls_from_local_file("links.txt")
