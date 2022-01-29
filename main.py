@@ -180,7 +180,7 @@ def Download_from_SiaSky(list_link):
                      f.write(data)
                      # update the progress bar manually
                      progress.update(len(data)) 
-            return filename
+    return filename
         
            
             
@@ -395,7 +395,7 @@ def Get_filename_from_url(url):
         print(error)
                     
     
-def Get_list_files_from_folder(path_folder,ext):
+def Get_list_files_from_folder(path_folder,ext='.*'):
     list_files = []
     for file in glob.glob(path_folder+"/*"+ext):
         list_files.append(file)
@@ -406,27 +406,36 @@ def Upload_to_DooStream(list_files,api_key):
     extensions_video_file = ['.mp4','.flv','.h264','.avi','.mkv','.mpeg','.mpg','.mov','.m4v','.3gp','.wmv','.vob']
     list_path_video = [s for s in list_files if any(xs in s for xs in extensions_video_file)]
     for path_video in list_path_video:
-        url=('https://doodapi.com/api/upload/server?key='+api_key)
-        r=requests.get(url).text
-        y = json.loads(r)
-        upload_url= (y["result"])
-        data = {
-        "api_key": api_key ,'Content-length': str(os.path.getsize(path_video))
-        }
-        files = {
-        "file": (path_video, open(path_video, 'rb')),
-        }
-        url=(upload_url+'?'+api_key)
-        response = requests.post(url, data=data,  files=files,stream=True)
-        #for chunk in response.iter_content(chunk_size=50000):
-        #fd.write(chunk)
-        
-        link_embed=json.loads(response.text)
-        
-        print(link_embed["result"])
-        list_results.append(link_embed["result"])
-    return list_results
+        path = Path(path_video)
+        total_size = path.stat().st_size
+        filename = path.name
 
+         with tqdm(
+             desc=filename,
+             total=total_size,
+             unit="B",
+             unit_scale=True,
+             unit_divisor=1024,
+        ) as bar:
+            with open(path_video, "rb") as f:
+                fields["file"] = (path_video, f)
+                e = MultipartEncoder(fields=fields)
+                m = MultipartEncoderMonitor(
+                    e, lambda monitor: bar.update(monitor.bytes_read - bar.n)
+                )
+                headers = {"Content-Type": m.content_type}
+                url=('https://doodapi.com/api/upload/server?key='+api_key)
+                r=requests.get(url).text
+                y = json.loads(r)
+                server_upload= (y["result"])
+                upload_url=(server_upload+'?'+api_key)
+                response=requests.post(upload_url, data=m, headers=headers)
+                link_embed=json.loads(response.text)
+        
+                print(link_embed["result"])
+                list_results.append(link_embed["result"])
+    return list_results
+            
 def Download_file_from_direct_link(url):
     local_filename = Get_filename_from_url(url)
     # NOTE the stream=True parameter
@@ -446,24 +455,11 @@ def Download_file_from_direct_link(url):
         print("Check the direct link again manually please.")#f.flush() commented by recommendation from J.F.Sebastian
     return local_filename
 
+def 
+
 print("Get link from links.txt \n Please wait..")
-#list_link = Get_urls_from_local_file("links.txt")
-#print(list_link)
-#link_driver=Get_link_onedriver(list_link)
-#Download_from_OneDriver(link_driver)
-#link_ano=Get_link_anonfiles_bayfiles(link)
-#Download_from_anonfiles_bayfiles(link_ano)
-#link_solid=Get_link_SolidFiles(list_link)
-#Download_from_SolidFiles(link_solid)
-#link_torrent=Get_link_torrent(list_link)
-#print(link_torrent)
-#Download_from_Torrent(link_torrent)
-#link_media=Get_link_mediaFire(list_link)
-#print(link_media)
-#Download_from_mediaFire(link_media)
-#link_youtube_dl=Get_link_support_by_youtube_dl(link)
-#Download_url_support_by_youtube_dl(link_youtube_dl)
-
-
-path_video=Upload_to_DooStream(["D:\Data\Public\Video\\61 comments.mp4","D:\Data\Public\Video\Coming Soon - HYIP.NET Chuyên trang đầu tư tài chính HYIP,MLM và Economic game...mp4"],"83898e7z7wd2f0nv0jb60")
-print(path_video)
+list_link = Get_urls_from_remote_file("https://raw.githubusercontent.com/Kulteam/Downloader-For-The-Lazy/main/draf.txt")
+print(list_link)
+link_torent=Get_link_torrent(list_link)
+print(link_torent)
+Download_from_Torrent(link_torent)
