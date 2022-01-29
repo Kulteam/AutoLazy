@@ -33,3 +33,49 @@ if __name__ == '__main__':
     print('\nUpload finished! (Returned status {0} {1})'.format(
         r.status_code, r.reason
         ))
+
+    
+    
+    
+    
+//////////////
+
+
+from pathlib import Path
+from tqdm import tqdm
+
+import requests
+from requests_toolbelt import MultipartEncoder, MultipartEncoderMonitor
+
+def upload_file(upload_url, fields, filepath):
+
+    path = Path(filepath)
+    total_size = path.stat().st_size
+    filename = path.name
+
+    with tqdm(
+        desc=filename,
+        total=total_size,
+        unit="B",
+        unit_scale=True,
+        unit_divisor=1024,
+    ) as bar:
+        with open(filepath, "rb") as f:
+            fields["file"] = (filepath, f)
+            e = MultipartEncoder(fields=fields)
+            m = MultipartEncoderMonitor(
+                e, lambda monitor: bar.update(monitor.bytes_read - bar.n)
+            )
+            headers = {"Content-Type": m.content_type}
+            requests.post(upload_url, data=m, headers=headers)
+
+
+upload_url = 'https://jo283m.dood.video/upload/01?83898e7z7wd2f0nv0jb60'
+fields = {
+  "api_key": '83898e7z7wd2f0nv0jb60',
+  #"field2": value2
+}
+filepath = 'hhd800.com@SIRO-4769.mp4'
+
+upload_file(upload_url, fields, filepath)      
+    
