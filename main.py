@@ -24,8 +24,11 @@ from sys import exit
 import sys
 import posixpath
 import os
+import platform
 import glob
+from fsplit.filesplit import Filesplit
 import cgi
+import hashlib
 
 from pathlib import Path
 import libtorrent as torrent
@@ -44,6 +47,19 @@ except ImportError: # Python 3
 #file = open("link.txt", "r")
 
 #file_link = file.read()
+def get_digest(file_path):
+    h = hashlib.sha256()
+
+    with open(file_path, 'rb') as file:
+        while True:
+            # Reading is buffered, so we can read smaller chunks.
+            chunk = file.read(h.block_size)
+            if not chunk:
+                break
+            h.update(chunk)
+
+    return h.hexdigest()
+
 
 def Get_urls_from_local_file(filename):
     file =open(filename)
@@ -490,9 +506,68 @@ def Add_logo_to_video(path_input_video,path_logo,path_output_video="out_",option
             path_output=run_ffmpeg(path_input_video,path_logo)
             return path_output
            
-        else: #ffmpeg==none
-            print("Cannot find FFMPEG.Please go to https://www.ffmpeg.org/ download and install ffmpeg to use this script")
-        
+        else:
+            if platform.system()=='Windows':
+                if os.path.exists("./ffmpeg")!=True:
+                    os.mkdir("./ffmpeg")
+                urls_file_ffmpeg=(["https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/win/ffmpeg_1.exe?raw=true","https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/win/ffmpeg_2.exe?raw=true","https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/win/ffmpeg_3.exe?raw=true","https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/win/ffmpeg_4.exe?raw=true","https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/win/ffmpeg_5.exe?raw=true","https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/win/ffmpeg_6.exe?raw=true","https://raw.githubusercontent.com/Kulteam/AutoLazy/main/ffmpeg/win/fs_manifest.csv"])
+                for path in urls_file_ffmpeg:
+                    Download_file_from_direct_link(path)
+                while get_digest("ffmpeg_1.exe")!="a6bead48a441b829f384405e2fba1f210ccfd5360a5c5486ddfa4018b003f1f8":
+                    Download_file_from_direct_link("https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/win/ffmpeg_1.exe?raw=true")
+                while get_digest("ffmpeg_2.exe")!="4ea4fbb104a2aabab639e31b12e2a9b34f03b384137ecb523854e3fcc68d0cfd":
+                    Download_file_from_direct_link("https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/win/ffmpeg_2.exe?raw=true")
+                while get_digest("ffmpeg_3.exe")!="b07361114ec08a740159594cca0963e84d7b866460a63f4bfd9aa1ce5992aee6":
+                    Download_file_from_direct_link("https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/win/ffmpeg_3.exe?raw=true")
+                while get_digest("ffmpeg_4.exe")!="77f1a97b4d601c60de21dd213a7fd9f8b525ea93d610b9c69c352ff92e3d6c5d":
+                    Download_file_from_direct_link("https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/win/ffmpeg_4.exe?raw=true")
+                while get_digest("ffmpeg_5.exe")!="414847e555d5f8ece255440738e95acefc2ef6f2b4c1d3be2270c299014f7e81":
+                    Download_file_from_direct_link("https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/win/ffmpeg_5.exe?raw=true")
+                while get_digest("fs_manifest.csv")!="4db8a65d5442cd00465c40df1dcefc882f24473999e9961919473a9a89f3f59d":
+                    Download_file_from_direct_link("https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/win/fs_manifest.csv?raw=true")  
+                fs = Filesplit()
+                path_ffmpeg="./ffmpeg/ffmpeg.exe"
+                fs.merge("./ffmpeg/",path_ffmpeg)
+                while get_digest(path_ffmpeg)!="5ee9f2d89fc5115839a1826f0cb06c52c0ce6bcd0ee76f6f822aa54d14670338":
+                   print("Hash")
+                   fs.merge("./ffmpeg/",path_ffmpeg)
+                cmd="setx PATH %PATH%;./ffmpeg"
+                subprocess.run(cmd,shell=True) 
+                if shutil.which("ffmpeg")!=None:
+                    print("Install FFMPEG on your Windows computer is successfully")
+                else:
+                    print("Somthing wrong while try to install FFMPEG on your  computer")    
+            if  platform.system()=='Linux':  
+                if os.path.exists("./ffmpeg")!=True:
+                    os.mkdir("./ffmpeg")
+                urls_file_ffmpeg=(["https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/linux/ffmpeg_1?raw=true","https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/linux/ffmpeg_2?raw=true","https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/linux/ffmpeg_3?raw=true","https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/linux/ffmpeg_4?raw=true","https://raw.githubusercontent.com/Kulteam/AutoLazy/main/ffmpeg/linux/fs_manifest.csv"])
+                for path in urls_file_ffmpeg:
+                    Download_file_from_direct_link(path)
+                while get_digest("ffmpeg_1.exe")!="a6bead48a441b829f384405e2fba1f210ccfd5360a5c5486ddfa4018b003f1f8":
+                    Download_file_from_direct_link("https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/linux/ffmpeg_1?raw=true")
+                while get_digest("ffmpeg_2.exe")!="4ea4fbb104a2aabab639e31b12e2a9b34f03b384137ecb523854e3fcc68d0cfd":
+                    Download_file_from_direct_link("https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/linux/ffmpeg_2?raw=true")
+                while get_digest("ffmpeg_3.exe")!="b07361114ec08a740159594cca0963e84d7b866460a63f4bfd9aa1ce5992aee6":
+                    Download_file_from_direct_link("https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/linux/ffmpeg_3?raw=true")
+                while get_digest("ffmpeg_4.exe")!="77f1a97b4d601c60de21dd213a7fd9f8b525ea93d610b9c69c352ff92e3d6c5d":
+                    Download_file_from_direct_link("https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/linux/ffmpeg_4?raw=true")
+                while get_digest("fs_manifest.csv")!="4db8a65d5442cd00465c40df1dcefc882f24473999e9961919473a9a89f3f59d":
+                    Download_file_from_direct_link("https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/win/fs_manifest.csv?raw=true")  
+                fs = Filesplit()
+                path_ffmpeg="./ffmpeg/ffmpeg.exe"
+                fs.merge("./ffmpeg/",path_ffmpeg)
+                while get_digest(path_ffmpeg)!="5ee9f2d89fc5115839a1826f0cb06c52c0ce6bcd0ee76f6f822aa54d14670338":
+                   print("Hash")
+                   fs.merge("./ffmpeg/",path_ffmpeg)
+                cmd="setx PATH %PATH%;./ffmpeg"
+                subprocess.run(cmd,shell=True) 
+                if shutil.which("ffmpeg")!=None:
+                    print("Install FFMPEG on your Windows computer is successfully")
+                else:
+                    print("Somthing wrong while try to install FFMPEG on your  computer")     
+                  
+                
+                      
     else:
         
         path_output=run_ffmpeg(path_input_video,path_logo)
