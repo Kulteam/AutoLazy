@@ -465,32 +465,9 @@ def Download_file_from_direct_link(url):
     return local_filename
 
 def Add_logo_to_video(path_input_video,path_logo,path_output_video="out_",option="5:5",set_full_path_ffmpeg="ffmpeg"):
-    def run_ffmpeg(patch_output_video):
-        
-    path = Path(path_input_video)
-    filename = path.name
-    # Check path ffmpeg
-    if set_full_path_ffmpeg=="ffmpeg":
-        if shutil.which(set_full_path_ffmpeg)!=None:
-        
-                if path_output_video=="out_":
-                    path_output=(path_output_video+filename)
-                    cmd =("ffmpeg -y -i "+path_input_video+" -i "+path_logo+" -filter_complex \"overlay="+option+"\""+" -codec:a copy "+path_output)
-                    subprocess.run(cmd,shell=True)
-                    return Path(path_output)
-            
-                else:
-                    path_output=path_output_video
-                    cmd =("ffmpeg -y -i "+path_input_video+" -i "+path_logo+" -filter_complex \"overlay="+option+"\""+" -codec:a copy "+path_output)
-                    subprocess.run(cmd,shell=True)
-                    return Path(path_output)
-                  
-          
-        else: #ffmpeg==none
-            print("Cannot find FFMPEG.Please go to https://www.ffmpeg.org/ download and install ffmpeg to use this script")
-        
-    else:
-            if path_output_video=="out_":
+    
+    def run_ffmpeg(path_input_video,path_logo):
+        if path_output_video=="out_":
                 path_output=(path_output_video+filename)
                
                 path_ffmpeg=set_full_path_ffmpeg
@@ -498,16 +475,32 @@ def Add_logo_to_video(path_input_video,path_logo,path_output_video="out_",option
                 subprocess.run(cmd,shell=True)
                 return Path(path_output)
                        
-            else:
-             path_output=path_output_video
-             path_ffmpeg=set_full_path_ffmpeg
-             cmd =(path_ffmpeg+" -y -i "+path_input_video+" -i "+path_logo+" -filter_complex \"overlay="+option+"\""+" -codec:a copy "+path_output)
-             subprocess.run(cmd,shell=True)
-             return Path(path_output)
+        else:
+                path_output=path_output_video
+                path_ffmpeg=set_full_path_ffmpeg
+                cmd =(path_ffmpeg+" -y -i "+path_input_video+" -i "+path_logo+" -filter_complex \"overlay="+option+"\""+" -codec:a copy "+path_output)
+                subprocess.run(cmd,shell=True)
+                return Path(path_output)
+           
+    path = Path(path_input_video)
+    filename = path.name
+    # Check path ffmpeg
+    if set_full_path_ffmpeg=="ffmpeg":
+        if shutil.which(set_full_path_ffmpeg)!=None:
+            path_output=run_ffmpeg(path_input_video,path_logo)
+            return path_output
+           
+        else: #ffmpeg==none
+            print("Cannot find FFMPEG.Please go to https://www.ffmpeg.org/ download and install ffmpeg to use this script")
+        
+    else:
+        
+        path_output=run_ffmpeg(path_input_video,path_logo)
+        return path_output
         
                     
                    
 print("Get link from links.txt \n Please wait..")
 #list_link = Get_urls_from_remote_file("https://raw.githubusercontent.com/Kulteam/Downloader-For-The-Lazy/main/draf.txt")
-link=Download_url_support_by_youtube_dl(["https://www.youtube.com/watch?v=0DZ9GShgQ0g"])
-print(link)
+add_logo=Add_logo_to_video("2.mp4","logo-s.png",set_full_path_ffmpeg=r"D:\ffmpeg-2022-01-19-git-dd17c86aa1-full_build\bin\ffmpeg.exe")
+print(add_logo)
