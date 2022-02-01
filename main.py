@@ -2,6 +2,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 from fileinput import filename
+from shutil import which
+import shutil
+import subprocess
 from urllib.request import urlopen 
 from urllib.parse import quote
 from requests.sessions import session   
@@ -14,8 +17,9 @@ import random
 import time
 import urllib
 from urllib.request import urlretrieve
+from requests_toolbelt import MultipartEncoder, MultipartEncoderMonitor
 import json
-from tqdm import tqdm
+from tqdm import tqdm 
 from sys import exit
 import sys
 import posixpath
@@ -351,7 +355,8 @@ def Download_url_support_by_youtube_dl(list_link):
     try:
         ydl_opts = {}
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-             ydl.download(list_link)
+             link=ydl.download(list_link)
+             return link
     except youtube_dl.DownloadError:
         print("Youtube-dl only support download videos \n Please manually download or try other way If you want download other type file \n" 
               "Host support by this script: \n-Youtube (Only Video)\n-Facebook (Only Video) \n-BiliBili (Only Video)\n-PornHub (Only Video)\n-AnonFiles\n-BayFiles"
@@ -403,6 +408,10 @@ def Get_list_files_from_folder(path_folder,ext='.*'):
     
 def Upload_to_DooStream(list_files,api_key):
     list_results=[]
+    fields = {
+    "api_key": api_key,
+  #"field2": value2
+    }
     extensions_video_file = ['.mp4','.flv','.h264','.avi','.mkv','.mpeg','.mpg','.mov','.m4v','.3gp','.wmv','.vob']
     list_path_video = [s for s in list_files if any(xs in s for xs in extensions_video_file)]
     for path_video in list_path_video:
@@ -410,7 +419,7 @@ def Upload_to_DooStream(list_files,api_key):
         total_size = path.stat().st_size
         filename = path.name
 
-         with tqdm(
+        with tqdm(
              desc=filename,
              total=total_size,
              unit="B",
@@ -455,11 +464,50 @@ def Download_file_from_direct_link(url):
         print("Check the direct link again manually please.")#f.flush() commented by recommendation from J.F.Sebastian
     return local_filename
 
-def 
-
+def Add_logo_to_video(path_input_video,path_logo,path_output_video="out_",option="5:5",set_full_path_ffmpeg="ffmpeg"):
+    def run_ffmpeg(patch_output_video):
+        
+    path = Path(path_input_video)
+    filename = path.name
+    # Check path ffmpeg
+    if set_full_path_ffmpeg=="ffmpeg":
+        if shutil.which(set_full_path_ffmpeg)!=None:
+        
+                if path_output_video=="out_":
+                    path_output=(path_output_video+filename)
+                    cmd =("ffmpeg -y -i "+path_input_video+" -i "+path_logo+" -filter_complex \"overlay="+option+"\""+" -codec:a copy "+path_output)
+                    subprocess.run(cmd,shell=True)
+                    return Path(path_output)
+            
+                else:
+                    path_output=path_output_video
+                    cmd =("ffmpeg -y -i "+path_input_video+" -i "+path_logo+" -filter_complex \"overlay="+option+"\""+" -codec:a copy "+path_output)
+                    subprocess.run(cmd,shell=True)
+                    return Path(path_output)
+                  
+          
+        else: #ffmpeg==none
+            print("Cannot find FFMPEG.Please go to https://www.ffmpeg.org/ download and install ffmpeg to use this script")
+        
+    else:
+            if path_output_video=="out_":
+                path_output=(path_output_video+filename)
+               
+                path_ffmpeg=set_full_path_ffmpeg
+                cmd =(path_ffmpeg+" -y -i "+path_input_video+" -i "+path_logo+" -filter_complex \"overlay="+option+"\""+" -codec:a copy "+path_output)
+                subprocess.run(cmd,shell=True)
+                return Path(path_output)
+                       
+            else:
+             path_output=path_output_video
+             path_ffmpeg=set_full_path_ffmpeg
+             cmd =(path_ffmpeg+" -y -i "+path_input_video+" -i "+path_logo+" -filter_complex \"overlay="+option+"\""+" -codec:a copy "+path_output)
+             subprocess.run(cmd,shell=True)
+             return Path(path_output)
+        
+                    
+                   
 print("Get link from links.txt \n Please wait..")
-list_link = Get_urls_from_remote_file("https://raw.githubusercontent.com/Kulteam/Downloader-For-The-Lazy/main/draf.txt")
-print(list_link)
-link_torent=Get_link_torrent(list_link)
-print(link_torent)
-Download_from_Torrent(link_torent)
+#list_link = Get_urls_from_remote_file("https://raw.githubusercontent.com/Kulteam/Downloader-For-The-Lazy/main/draf.txt")
+link=Download_url_support_by_youtube_dl(["https://www.youtube.com/watch?v=0DZ9GShgQ0g"])
+print(link)
