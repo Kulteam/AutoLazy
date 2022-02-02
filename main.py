@@ -499,7 +499,7 @@ def Get_FFMPEG(path_dir="./ffmpeg"):
                 if os.path.exists(path_dir+"/ffmpeg.exe")==True:
                     return path_dir+"/ffmpeg.exe"
                 else :    
-                    os.mkdir(path_dir)
+                    os.makedirs(path_dir)
                     if os.path.exists(path_dir)!=True:
                       print("Cannot create folder to download FFMPEG \n Please check! ") 
                       return False
@@ -564,9 +564,7 @@ def Get_FFMPEG(path_dir="./ffmpeg"):
                          fs.merge(path_dir,path_ffmpeg)
                    
                    chmod="chmod +x "+path_ffmpeg      
-                   cmd="export PATH=$PATH:"+path_dir
                    subprocess.run(chmod,shell=True) 
-                   subprocess.run(cmd,shell=True) 
                    if shutil.which("ffmpeg")!=None:
                        print("Install FFMPEG on your Linux computer is successfully")
                        return path_ffmpeg
@@ -606,7 +604,8 @@ def Add_logo_to_video(path_input_video,path_logo,path_output_video="out_",option
             print("FFMPEG not install on your computer \n Down and install FFMPEG: ")
             path_ffmpeg=Get_FFMPEG()
             if path_ffmpeg!=False:
-                return run_ffmpeg(path_ffmpeg,path_input_video,path_logo)              
+                return run_ffmpeg(path_ffmpeg,path_input_video,path_logo) 
+            return False             
     else:
             path_ffmpeg=path_ffmpeg
             return run_ffmpeg(path_ffmpeg,path_input_video,path_logo)
