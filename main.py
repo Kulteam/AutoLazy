@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
+from distutils.errors import LinkError
 from fileinput import filename
 from shutil import which
 import shutil
 import subprocess
-from urllib.request import urlopen 
-from urllib.parse import quote
+from urllib.request import HTTPDefaultErrorHandler, urlopen ,urlretrieve
+from urllib.parse import quote, urlparse
 from requests.sessions import session   
 import youtube_dl
 from ntpath import join
@@ -16,7 +17,6 @@ import re
 import random
 import time
 import urllib
-from urllib.request import urlretrieve
 from requests_toolbelt import MultipartEncoder, MultipartEncoderMonitor
 import json
 from tqdm import tqdm 
@@ -201,11 +201,7 @@ def Download_from_SiaSky(list_link):
                      # update the progress bar manually
                      progress.update(len(data)) 
     return filename
-        
-           
-            
-         
-            
+                    
 
 def Download_from_mediaFire(list_link,path_folder="."):
     list_file=[]
@@ -216,7 +212,6 @@ def Download_from_mediaFire(list_link,path_folder="."):
        # print(soup.title)
         for url in soup.findAll('a', attrs={'href': re.compile("^https?://download")}):
             link_direct = (url.get('href'))
-            
             print("Download file of link: "+link)
             filename=Download_file_from_direct_link(link_direct)
             print("Done download filename: "+filename)
@@ -236,9 +231,6 @@ def Download_from_mediaFire(list_link,path_folder="."):
             
                      
     return list_path_file   
-
-    
-
      
 def Get_direct_link_SolidFiles(url):
      headers = {
@@ -491,6 +483,7 @@ def Download_file_from_direct_link(url,path_folder=".",filename=None):
     if total_size_in_bytes != 0 and progress_bar.n != total_size_in_bytes:
         print("ERROR, something went wrong")
         print("Check the direct link again manually please.")
+        return False
     return local_filename
 
 
@@ -506,17 +499,17 @@ def Get_FFMPEG(path_dir="./ffmpeg"):
                     urls_file_ffmpeg=(["https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/win/ffmpeg_1.exe?raw=true","https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/win/ffmpeg_2.exe?raw=true","https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/win/ffmpeg_3.exe?raw=true","https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/win/ffmpeg_4.exe?raw=true","https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/win/ffmpeg_5.exe?raw=true","https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/win/ffmpeg_6.exe?raw=true","https://raw.githubusercontent.com/Kulteam/AutoLazy/main/ffmpeg/win/fs_manifest.csv"])
                     for path in urls_file_ffmpeg:
                          Download_file_from_direct_link(path,path_dir)
-                    while get_digest("ffmpeg_1.exe")!="a6bead48a441b829f384405e2fba1f210ccfd5360a5c5486ddfa4018b003f1f8":
+                    while get_digest(path_dir+"/ffmpeg_1.exe")!="a6bead48a441b829f384405e2fba1f210ccfd5360a5c5486ddfa4018b003f1f8":
                           Download_file_from_direct_link("https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/win/ffmpeg_1.exe?raw=true",path_dir)
-                    while get_digest("ffmpeg_2.exe")!="4ea4fbb104a2aabab639e31b12e2a9b34f03b384137ecb523854e3fcc68d0cfd":
+                    while get_digest(path_dir+"/ffmpeg_2.exe")!="4ea4fbb104a2aabab639e31b12e2a9b34f03b384137ecb523854e3fcc68d0cfd":
                         Download_file_from_direct_link("https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/win/ffmpeg_2.exe?raw=true",path_dir)
-                    while get_digest("ffmpeg_3.exe")!="b07361114ec08a740159594cca0963e84d7b866460a63f4bfd9aa1ce5992aee6":
+                    while get_digest(path_dir+"/ffmpeg_3.exe")!="b07361114ec08a740159594cca0963e84d7b866460a63f4bfd9aa1ce5992aee6":
                         Download_file_from_direct_link("https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/win/ffmpeg_3.exe?raw=true",path_dir)
-                    while get_digest("ffmpeg_4.exe")!="77f1a97b4d601c60de21dd213a7fd9f8b525ea93d610b9c69c352ff92e3d6c5d":
+                    while get_digest(path_dir+"/ffmpeg_4.exe")!="77f1a97b4d601c60de21dd213a7fd9f8b525ea93d610b9c69c352ff92e3d6c5d":
                         Download_file_from_direct_link("https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/win/ffmpeg_4.exe?raw=true",path_dir)
-                    while get_digest("ffmpeg_5.exe")!="414847e555d5f8ece255440738e95acefc2ef6f2b4c1d3be2270c299014f7e81":
+                    while get_digest(path_dir+"/ffmpeg_5.exe")!="414847e555d5f8ece255440738e95acefc2ef6f2b4c1d3be2270c299014f7e81":
                         Download_file_from_direct_link("https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/win/ffmpeg_5.exe?raw=true",path_dir)
-                    while get_digest("fs_manifest.csv")!="4db8a65d5442cd00465c40df1dcefc882f24473999e9961919473a9a89f3f59d":
+                    while get_digest(path_dir+"/fs_manifest.csv")!="4db8a65d5442cd00465c40df1dcefc882f24473999e9961919473a9a89f3f59d":
                         Download_file_from_direct_link("https://github.com/Kulteam/AutoLazy/blob/main/ffmpeg/win/fs_manifest.csv?raw=true",path_dir)  
                     fs = Filesplit()
                     path_ffmpeg=path_dir+"/ffmpeg.exe"
@@ -538,7 +531,7 @@ def Get_FFMPEG(path_dir="./ffmpeg"):
                     return path_dir+"/ffmpeg"
        
                 else :
-                   os.mkdir(path_dir)
+                   os.makedirs(path_dir)
                    if os.path.exists(path_dir)!=True:
                       print("Cannot create folder to download FFMPEG \n Please check! ") 
                       return False 
@@ -565,13 +558,16 @@ def Get_FFMPEG(path_dir="./ffmpeg"):
                    
                    chmod="chmod +x "+path_ffmpeg      
                    subprocess.run(chmod,shell=True) 
-                   if shutil.which("ffmpeg")!=None:
+                   if os.path.exists(path_ffmpeg)==True:
                        print("Install FFMPEG on your Linux computer is successfully")
                        return path_ffmpeg
                    else:
                         print("Somthing wrong while try to install FFMPEG on your Linux computer")  
                         return False  
-
+    else:
+        print("Your system computer not support by this Script \n System Support: \n -Windows \n -Linux ")
+        return False
+    
 def Add_logo_to_video(path_input_video,path_logo,path_output_video="out_",option="5:5",path_ffmpeg="ffmpeg"):
     
     def run_ffmpeg(path_ffmpeg,path_input_video,path_logo):
@@ -609,8 +605,49 @@ def Add_logo_to_video(path_input_video,path_logo,path_output_video="out_",option
     else:
             path_ffmpeg=path_ffmpeg
             return run_ffmpeg(path_ffmpeg,path_input_video,path_logo)
-                                       
+
+def Find_file_torrent_from_url(url):
+    try:
+       reqs = requests.get(url)
+    except :
+        return False
+    soup = BeautifulSoup(reqs.text, 'html.parser')
+    root_url = urlparse(url).scheme + '://' + urlparse(url).hostname
+    for link in soup.find_all('a'):
+        if link.get('href') is None:
+            return False
+        if link.get('href').endswith('.torrent')==True:
+            if link.get('href').startswith('http')==True:
+                return link.get('href')
+               
+            else:
+                 return root_url+link.get('href')
+    return False 
+           
+                
+
+def Find_file_torrent_from_urls(list_url):
+    list_urls_file=[]
+    for url in list_url:
+        torrent_url=Find_file_torrent_from_url(url)
+        if torrent_url!=False:
+            list_urls_file.append(torrent_url)
+    if not list_urls_file:
+        return False
+    else:
+        return list_urls_file        
+                      
+                                      
 print("Get link from links.txt \n Please wait..")
-#list_link = Get_urls_from_remote_file("https://raw.githubusercontent.com/Kulteam/Downloader-For-The-Lazy/main/draf.txt")
-path=Add_logo_to_video("2.mp4","logo-s.png","C://2.mkv",path_ffmpeg=r"D:\ffmpeg-2022-01-19-git-dd17c86aa1-full_build\bin\ffmpeg.exe")
-print(path)
+
+url = 'https://onejav.com/'
+reqs = requests.get(url)
+soup = BeautifulSoup(reqs.text, 'html.parser')
+root_url = urlparse(url).scheme + '://' + urlparse(url).hostname
+print(root_url) 
+urls = []
+for link in soup.find_all('a'):
+    urls.append(root_url+link.get('href'))
+print(urls)    
+list_link=Find_file_torrent_from_urls(urls)
+print(list_link)    
