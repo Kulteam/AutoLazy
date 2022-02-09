@@ -6,8 +6,9 @@ from fileinput import filename
 from shutil import which
 import shutil
 import subprocess
+import urllib
 from urllib.request import HTTPDefaultErrorHandler, urlopen ,urlretrieve
-from urllib.parse import quote, urlparse
+from urllib.parse import quote, urlparse,urlsplit, unquote
 from requests.sessions import session   
 import youtube_dl
 from ntpath import join
@@ -16,7 +17,6 @@ import requests
 import re
 import random
 import time
-import urllib
 from requests_toolbelt import MultipartEncoder, MultipartEncoderMonitor
 import json
 from tqdm import tqdm 
@@ -33,14 +33,6 @@ import hashlib
 from pathlib import Path
 import libtorrent as torrent
 from requests.exceptions import RequestException
-
-
-try:
-    from urlparse import urlsplit
-    from urllib import unquote
-except ImportError: # Python 3
-    from urllib.parse import urlsplit, unquote
-
 
 #list_links=[]
 
@@ -413,8 +405,53 @@ def Get_list_files_from_folder(path_folder,ext='.*'):
     for file in glob.glob(path_folder+"/*"+ext):
         list_files.append(file)
     return(list_files)
+
+def Upload_to_DooStream(path_file,api_key):
+    def is_video_file(path_file):
+        if os.path.isfile(path_file):
+            file_extension = os.path.splitext(path_file)[1]
+            if file_extension.lower() in {'.mp4','.flv','.h264','.avi','.mkv','.mpeg','.mpg','.mov','.m4v','.3gp','.wmv','.vob'}:
+                return True
+            return False
+        return False
     
-def Upload_to_DooStream(list_files,api_key):
+    
+    fields = {
+    "api_key": api_key,
+  
+    }
+    
+    if is_video_file(path_file)==True:
+        if os.path.exists(path_file)==True:
+            path = Path(path_file) 
+            total_size = path.stat().st_size
+            filename = path.name
+      
+            with tqdm(
+              desc=filename,
+              total=total_size,
+              unit="B",
+              unit_scale=True,
+              unit_divisor=1024,
+            ) as bar:
+                with open(path_file, "rb") as f:
+                   fields["file"] = (path_file, f)
+                   e = MultipartEncoder(fields=fields)
+                   m = MultipartEncoderMonitor(
+                   e, lambda monitor: bar.update(monitor.bytes_read - bar.n)
+                   )
+                   headers = {"Content-Type": m.content_type}
+                   url=('https://doodapi.com/api/upload/server?key='+api_key)
+                   response=requests.get(url).text
+                   server_upload = json.loads(response)["result"]
+                   upload_url=(server_upload+'?'+api_key)
+                   response=requests.post(upload_url, data=m, headers=headers)
+                   return json.loads(response.text)["result"][0]["protected_embed"]
+                
+    return False
+
+   
+def Uploads_to_DooStream(list_files,api_key):
     list_results=[]
     fields = {
     "api_key": api_key,
@@ -442,15 +479,13 @@ def Upload_to_DooStream(list_files,api_key):
                 )
                 headers = {"Content-Type": m.content_type}
                 url=('https://doodapi.com/api/upload/server?key='+api_key)
-                r=requests.get(url).text
-                y = json.loads(r)
-                server_upload= (y["result"])
+                response=requests.get(url).text
+                server_upload = json.loads(response)["result"]
                 upload_url=(server_upload+'?'+api_key)
                 response=requests.post(upload_url, data=m, headers=headers)
-                link_embed=json.loads(response.text)
+                link_embed=json.loads(response.text)["result"][0]["protected_embed"]
+                list_results.append(link_embed)
         
-                print(link_embed["result"])
-                list_results.append(link_embed["result"])
     return list_results
             
 def Download_file_from_direct_link(url,path_folder=".",filename=None):
@@ -625,7 +660,6 @@ def Find_file_torrent_from_url(url):
     return False 
            
                 
-
 def Find_file_torrent_from_urls(list_url):
     list_urls_file=[]
     for url in list_url:
@@ -636,8 +670,7 @@ def Find_file_torrent_from_urls(list_url):
         return False
     else:
         return list_urls_file        
-                      
-                                      
+                                                    
 print("Get link from links.txt \n Please wait..")
 
 url = 'https://onejav.com/'
