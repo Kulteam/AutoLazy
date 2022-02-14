@@ -3,6 +3,7 @@
 from __future__ import unicode_literals
 from distutils.errors import LinkError
 from fileinput import filename
+from genericpath import isfile
 from shutil import which
 import shutil
 import subprocess
@@ -603,21 +604,34 @@ def Get_FFMPEG(path_dir="./ffmpeg"):
         print("Your system computer not support by this Script \n System Support: \n -Windows \n -Linux ")
         return False
     
-def Add_logo_to_video(path_input_video,path_logo,path_output_video="out_",option="5:5",path_ffmpeg="ffmpeg"):
+def Add_logo_to_video(path_input_video,path_logo,path_output="out_",option="5:5",path_ffmpeg="ffmpeg"):
     
     def run_ffmpeg(path_ffmpeg,path_input_video,path_logo):
-        if path_output_video=="out_":
-                path_output=(path_output_video+filename)
-                cmd =(path_ffmpeg+" -y -i "+path_input_video+" -i "+path_logo+" -filter_complex \"overlay="+option+"\""+" -codec:a copy "+path_output)
+        if path_output=="out_":
+            path_output=(path_output+filename)
+        else:
+              
+            if os.path.exists(path_output)==True:
+       
+                
+                cmd =(path_ffmpeg+" -y -i '+path_input_video+' -i "+path_logo+" -filter_complex \"overlay="+option+"\""+" -codec:a copy "+path_output)
                 subprocess.run(cmd,shell=True)
-                if os.path.exists(path_output)==True:
+                
                     return Path(path_output)
                 else :
                     return False                
         else:
-                path_output=path_output_video
+                if os.path.isdir(path_output)==True:
+                    folder_output=Path(path_output)
+                    file_output=Path(path_input_video).name
+                    path_output=os.path.join(folder_output,file_output)
+                else:
+                   # os.path.isfile(path_output)==True
+                    path_output=path_output
+
+                
                 path_ffmpeg=path_ffmpeg
-                cmd =(path_ffmpeg+" -y -i "+path_input_video+" -i "+path_logo+" -filter_complex \"overlay="+option+"\""+" -codec:a copy "+path_output)
+                cmd =(("{} -y -i '{}' -i {} -filter_complex \"overlay={}\" -codec:a copy '{}'").format(path_ffmpeg,path_input_video,path_logo,option,path_output))
                 subprocess.run(cmd,shell=True)
                 if os.path.exists(path_output)==True:
                     return Path(path_output)
@@ -640,6 +654,36 @@ def Add_logo_to_video(path_input_video,path_logo,path_output_video="out_",option
     else:
             path_ffmpeg=path_ffmpeg
             return run_ffmpeg(path_ffmpeg,path_input_video,path_logo)
+
+def Add_logo_to_videos(list_path_input_or_folder_video,path_logo,folder_output=".",option="5:5",path_ffmpeg="ffmpeg"):
+
+    def is_video_file(path_file):
+        if os.path.isfile(path_file):
+            file_extension = os.path.splitext(path_file)[1]
+            if file_extension.lower() in {'.mp4','.flv','.h264','.avi','.mkv','.mpeg','.mpg','.mov','.m4v','.3gp','.wmv','.vob'}:
+                return True
+            return False
+        return False
+    list_result=[]   
+    for path_file_or_folder in list_path_input_or_folder_video:
+        if os.path.isdir(path_file_or_folder)==True:
+            list_files=[os.path.join(path, name) for path, subdirs, files in os.walk(path_file_or_folder) for name in files]
+            print(list_files)
+            for path in list_files:
+                if is_video_file(path)==True:
+                    path=os.path.basename(path)
+                    print(path)
+                    video_path=(Add_logo_to_video(path,path_logo,path_output=folder_output))
+                    list_result.append(video_path)
+        else:
+             if os.path.isfile(path_file_or_folder)==True:
+                  if is_video_file(path_file_or_folder)==True:
+                       list_result.append(Add_logo_to_video(path_file_or_folder,path_logo,path_output=folder_output))
+           
+    return list_result            
+
+
+
 
 def Find_file_torrent_from_url(url):
     try:
@@ -669,18 +713,49 @@ def Find_file_torrent_from_urls(list_url):
     if not list_urls_file:
         return False
     else:
-        return list_urls_file        
+        return list_urls_file      
+
+def Get_basic_info_141JAV(url_141jav_com,path_logo,api_key):
+    def Get_emble_url_video(torrent_url):
+        torrent_file=Download_file_from_TorrentFile(torrent_url)
+        video_with_logo=Add_logo_to_video(torrent_file,path_logo)
+        return Upload_to_DooStream(video_with_logo,api_key)
+
+
+    try:
+            page = requests.get(url_141jav_com)
+            soup = BeautifulSoup(page.content, 'html.parser')
+            video_code=soup.find('title').string.replace(" - 141JAV.com - Free JAV Torrents","")
+            video_title = soup.find('p', class_="level has-text-grey-dark").string.replace("\n","")
+            video_image=soup.find_all(class_="image")[0]['src']
+            video_tag=soup.find_all('a',class_="tag is-light")
+            video_tags=[]
+            for tag in video_tag:
+               video_tags.append(tag.string.replace("\n",""))
+            actors=soup.find_all('a',class_="panel-block")
+            actress=[] 
+            for actress_idol in actors:
+              actress.append(actress_idol.string.replace("\n",""))
+            url_torrent=Find_file_torrent_from_url(url_141jav_com)
+            
+    except:
+        print("Somthing wrong while get infomation from 141jav.com \n Please check again ")
+        return False    
+    return {"video_title":video_title,"video_code":video_code,"actress":actress,"video_image":video_image,"video_tags":video_tags,"video_torrent_file":url_torrent,"embed_link":Get_emble_url_video(url_torrent)}
+
+
+
+
+
+
+
+def Get_info_video_141JAV(url):
+    if Find_file_torrent_from_url(url)!=False:
+        pass
+
+
                                                     
 print("Get link from links.txt \n Please wait..")
 
-url = 'https://onejav.com/'
-reqs = requests.get(url)
-soup = BeautifulSoup(reqs.text, 'html.parser')
-root_url = urlparse(url).scheme + '://' + urlparse(url).hostname
-print(root_url) 
-urls = []
-for link in soup.find_all('a'):
-    urls.append(root_url+link.get('href'))
-print(urls)    
-list_link=Find_file_torrent_from_urls(urls)
-print(list_link)    
+link=Add_logo_to_videos(".","logo-s.png","./Out/")
+print(link)
