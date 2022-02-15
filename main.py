@@ -603,67 +603,91 @@ def Get_FFMPEG(path_dir="./ffmpeg"):
     else:
         print("Your system computer not support by this Script \n System Support: \n -Windows \n -Linux ")
         return False
-    
-def Add_logo_to_video(path_input_video,path_logo,path_output="out_",option="5:5",path_ffmpeg="ffmpeg"):
-    
-    def run_ffmpeg(path_ffmpeg,path_input_video,path_logo):
-        if path_output=="out_":
-            path_output=(path_output+filename)
-        else:
-              
-            if os.path.exists(path_output)==True:
-       
-                
-                cmd =(path_ffmpeg+" -y -i '+path_input_video+' -i "+path_logo+" -filter_complex \"overlay="+option+"\""+" -codec:a copy "+path_output)
-                subprocess.run(cmd,shell=True)
-                
-                    return Path(path_output)
-                else :
-                    return False                
-        else:
-                if os.path.isdir(path_output)==True:
-                    folder_output=Path(path_output)
-                    file_output=Path(path_input_video).name
-                    path_output=os.path.join(folder_output,file_output)
-                else:
-                   # os.path.isfile(path_output)==True
-                    path_output=path_output
 
-                
-                path_ffmpeg=path_ffmpeg
-                cmd =(("{} -y -i '{}' -i {} -filter_complex \"overlay={}\" -codec:a copy '{}'").format(path_ffmpeg,path_input_video,path_logo,option,path_output))
-                subprocess.run(cmd,shell=True)
-                if os.path.exists(path_output)==True:
-                    return Path(path_output)
-                else :
-                    return False
-           
-    path = Path(path_input_video)
-    filename = path.name
-    # Check path ffmpeg
-    if path_ffmpeg=="ffmpeg":
-        if shutil.which(path_ffmpeg)!=None:
-            return run_ffmpeg(path_ffmpeg,path_input_video,path_logo)
-           
-        else:
-            print("FFMPEG not install on your computer \n Down and install FFMPEG: ")
-            path_ffmpeg=Get_FFMPEG()
-            if path_ffmpeg!=False:
-                return run_ffmpeg(path_ffmpeg,path_input_video,path_logo) 
-            return False             
-    else:
-            path_ffmpeg=path_ffmpeg
-            return run_ffmpeg(path_ffmpeg,path_input_video,path_logo)
+def is_image_file(path_file):
+    if os.path.isfile(path_file):
+        file_extension = os.path.splitext(path_file)[1]
+        if file_extension.lower() in {'.jpg','.png','.gif','.jpeg','.cr2','.tiff','.webp'}:
+                return True
+        return False
+    return False
 
-def Add_logo_to_videos(list_path_input_or_folder_video,path_logo,folder_output=".",option="5:5",path_ffmpeg="ffmpeg"):
-
-    def is_video_file(path_file):
+def is_video_file(path_file):
         if os.path.isfile(path_file):
             file_extension = os.path.splitext(path_file)[1]
             if file_extension.lower() in {'.mp4','.flv','.h264','.avi','.mkv','.mpeg','.mpg','.mov','.m4v','.3gp','.wmv','.vob'}:
                 return True
             return False
         return False
+
+def Add_logo_to_video(path_input_video,path_logo,path_output="out_",option="5:5",path_ffmpeg="ffmpeg"):
+    def run_ffmpeg() :
+        if platform.system()=='Linux':
+            cmd =(("{} -y -i '{}' -i {} -filter_complex \"overlay={}\" -codec:a copy '{}'").format(path_ffmpeg,path_input_video,path_logo,option,path_output))
+        elif platform.system()=='Windows':
+            cmd =(("{} -y -i \"{}\" -i {} -filter_complex \"overlay={}\" -codec:a copy \"{}\"").format(path_ffmpeg,path_input_video,path_logo,option,path_output))
+        else:
+            print("You system not support by this script \n System support: \n -Linux -Windows")
+            return False
+
+        try:
+            subprocess.run(cmd,shell=True)
+        except :
+            print("Somthing wrong.Please check !")
+            return False    
+
+        if os.path.exists(path_output)==True:
+            return os.path.normpath(path_output)
+                
+        return False
+    
+    #Kiểm tra xem tệp video đầu vào có hợp lệ k
+    if is_video_file(path_input_video)==True:
+        if os.path.exists(path_input_video)==True:
+            path_input_video=path_input_video
+    else:
+        print("File video not exists or incorrect")
+        return False
+    
+    if is_image_file(path_logo)==True:
+        if os.path.exists(path_logo)==True:
+            path_logo=path_logo
+    else:
+        print("File image not exists or incorrect")
+        return False
+    
+    if path_output=="out_":
+        path_output=(path_output+Path(path_input_video).name)
+    elif os.path.isfile(path_output)==True:
+        path_output=path_output
+    elif os.path.isdir(path_output)==True:
+            if os.path.exists(path_output)==True:
+                path_output=os.path.join(path_output,Path(path_input_video).name)
+            else:
+                os.makedirs(path_output)
+                if os.path.exists(path_output)==True:
+                   path_output=os.path.join(path_output,Path(path_input_video).name)
+                else:
+                    print("Cannot create path or folder to save output file")    
+                    return False
+    
+    if path_ffmpeg=="ffmpeg":
+        if shutil.which(path_ffmpeg)!=None:
+            return run_ffmpeg()
+           
+        else:
+            print("FFMPEG not install on your computer \n Down and install FFMPEG: ")
+            path_ffmpeg=Get_FFMPEG()
+            if path_ffmpeg!=False:
+                return run_ffmpeg() 
+            return False             
+    else:
+            path_ffmpeg=path_ffmpeg
+            return run_ffmpeg()
+
+def Add_logo_to_videos(list_path_input_or_folder_video,path_logo,folder_output=".",option="5:5",path_ffmpeg="ffmpeg"):
+
+   
     list_result=[]   
     for path_file_or_folder in list_path_input_or_folder_video:
         if os.path.isdir(path_file_or_folder)==True:
@@ -757,5 +781,5 @@ def Get_info_video_141JAV(url):
                                                     
 print("Get link from links.txt \n Please wait..")
 
-link=Add_logo_to_videos(".","logo-s.png","./Out/")
+link=Add_logo_to_video("Ái Nộ - Lạc - Masew - Rhymastic - Yling x Prod HuyLee Remix - Nhạc Hot Tiktok Căng Đét.mp4","logo-s.png","./Out/")
 print(link)
