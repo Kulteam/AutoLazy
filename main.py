@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
+from ast import Pass
+import string
+from distutils import extension
 from distutils.errors import LinkError
 from fileinput import filename
 from genericpath import isfile
@@ -26,7 +29,6 @@ import sys
 import posixpath
 import os
 import platform
-import glob
 from fsplit.filesplit import Filesplit
 import cgi
 import hashlib
@@ -224,7 +226,26 @@ def Download_from_mediaFire(list_link,path_folder="."):
             
                      
     return list_path_file   
-     
+
+def Get_list_files_from_folder(path_folder,subdir=False,extensions=[".*"]):
+    #Tham số extensions chứa list các file type để lọc ra các path với file type đc chỉ định
+    #Ví dụ extensions=[".mp4",".py",".pdf"]
+    if os.path.exists(path_folder)==True:
+        if subdir==False:
+            files = [f for f in os.listdir(path_folder) if os.path.isfile(f)]
+        elif subdir==True:
+            files = [os.path.join(path, name) for path, subdirs, files in os.walk(path_folder) for name in files]
+        if (extensions==[""]or(extensions==["."])or(extensions==[".*"])):
+            return files
+        else:
+            extensions = [extension.lower() for extension in extensions]
+            list_path = [s for s in files if any(xs in s for xs in extensions)]
+            return list_path
+    print("Something is wrong or Path folder is incorrect")
+    return False
+
+
+
 def Get_direct_link_SolidFiles(url):
      headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/36.0.1985.125 Safari/537.36'
@@ -277,7 +298,7 @@ def Download_file_from_MagnetLink(url,path_folder="."):
         print("Cannot get list files from folder.Something is wrong, please check ! ")
         
     return list_path_file
-    
+   
 
 def Download_file_from_TorrentFile(url,path_folder="."):
     
@@ -302,14 +323,11 @@ def Download_file_from_TorrentFile(url,path_folder="."):
         sys.stdout.flush()
         time.sleep(1)
     print(h.status().name, 'Complete')
-    path=(path_folder+'/'+h.status().name)
-    try:
-        path_file=Get_list_files_from_folder(path,".mp4")
-    except :
-        print("Cannot get list files from folder.Something is wrong, please check ! ")
-        
-    return path_file
-    
+    if os.path.isfile(h.status().name)==True:
+        return h.status().name
+    elif os.path.isdir(h.status().name)==True:
+        path=h.status().name
+        pass
 
 
 def Get_direct_link_onedriver(list_link):
@@ -400,22 +418,8 @@ def Get_filename_from_url(url):
     except RequestException as error:
         print(error)
                     
-    
-def Get_list_files_from_folder(path_folder,ext='.*'):
-    list_files = []
-    for file in glob.glob(path_folder+"/*"+ext):
-        list_files.append(file)
-    return(list_files)
 
 def Upload_to_DooStream(path_file,api_key):
-    def is_video_file(path_file):
-        if os.path.isfile(path_file):
-            file_extension = os.path.splitext(path_file)[1]
-            if file_extension.lower() in {'.mp4','.flv','.h264','.avi','.mkv','.mpeg','.mpg','.mov','.m4v','.3gp','.wmv','.vob'}:
-                return True
-            return False
-        return False
-    
     
     fields = {
     "api_key": api_key,
@@ -619,13 +623,91 @@ def is_video_file(path_file):
                 return True
             return False
         return False
+def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
+    return ''.join(random.choice(chars) for _ in range(size))
+
+def is_same_type_file(list_path,extension=None):
+    if extension==None:
+        extension=Path(list_path[0]).suffix
+    else:
+        extension=extension
+    for path in list_path:
+        if Path(path).suffix!=extension:
+            return False
+    return True
+
+def Join_video(list_path,output="out_",path_ffmpeg="ffmpeg"):
+    
+    def run_ffmpeg():
+        #Tạo tập tin với tên ngẫu nhiên chứa danh sách video file cần nối
+        filename=id_generator()+".txt"
+        with open(filename,'w+',encoding = 'utf-8') as file:
+            for path in list_path:
+                file.write("file '{}'\n").format(path)
+        file.close()
+        if platform.system()=='Linux':    
+            cmd=("'{}' -y -f concat -safe 0 -i '{}' -c copy '{}'").format(path_ffmpeg,filename,output)
+        elif platform.system()=='Windows': 
+            cmd=("\"{}\" -y -f concat -safe 0 -i \"{}\" -c copy \"{}\"").format(path_ffmpeg,filename,output)  
+        else:
+            print("You system not support by this script \n System support: \n -Linux -Windows")
+            return False
+        
+        try:
+            subprocess.run(cmd,shell=True)
+        except :
+            print("Somthing wrong.Please check !")
+            return False    
+        if os.path.exists(output)==True:
+            return os.path.normpath(output)
+        return False
+
+    list_video=[]
+    for path in list_path:
+        if is_video_file(path)==True:
+            if os.path.exists(path)==True:
+                list_video.append(path)
+    if is_same_type_file(list_video)==True:
+        list_path=list_video
+        if len(list_path)<=1:
+            print("You need 2 or more videos to join")
+            return False
+    if output=="out_":
+        output="out_"+Path(list_path[0]).suffix       
+    elif os.path.isfile(output)==True:
+         output=output
+    elif os.path.isdir(output)==True:
+        if os.path.exists(output)!=True:
+            try:
+                os.makedirs(output)
+            except:
+                print("Something is wrong while try create path to save output video file ")       
+                return False
+        output=os.path.join(output,"output"+Path(list_path[0]).suffix)    
+    else:
+        print("Somthing is wrong \n Output file/Folder is incorrect \n Please check")
+        return False
+
+    if path_ffmpeg=="ffmpeg":
+        if shutil.which(path_ffmpeg)!=None:
+            return run_ffmpeg()
+           
+        else:
+            print("FFMPEG not install on your computer \n Down and install FFMPEG: ")
+            path_ffmpeg=Get_FFMPEG()
+            if path_ffmpeg!=False:
+                return run_ffmpeg() 
+            return False             
+    else:
+            path_ffmpeg=path_ffmpeg
+            return run_ffmpeg()
 
 def Add_logo_to_video(path_input_video,path_logo,path_output="out_",option="5:5",path_ffmpeg="ffmpeg"):
     def run_ffmpeg() :
         if platform.system()=='Linux':
-            cmd =(("{} -y -i '{}' -i {} -filter_complex \"overlay={}\" -codec:a copy '{}'").format(path_ffmpeg,path_input_video,path_logo,option,path_output))
+            cmd =(("'{}' -y -i '{}' -i '{}' -filter_complex \"overlay={}\" -codec:a copy '{}'").format(path_ffmpeg,path_input_video,path_logo,option,path_output))
         elif platform.system()=='Windows':
-            cmd =(("{} -y -i \"{}\" -i {} -filter_complex \"overlay={}\" -codec:a copy \"{}\"").format(path_ffmpeg,path_input_video,path_logo,option,path_output))
+            cmd =(("\"{}\" -y -i \"{}\" -i \"{}\" -filter_complex \"overlay={}\" -codec:a copy \"{}\"").format(path_ffmpeg,path_input_video,path_logo,option,path_output))
         else:
             print("You system not support by this script \n System support: \n -Linux -Windows")
             return False
@@ -780,6 +862,3 @@ def Get_info_video_141JAV(url):
 
                                                     
 print("Get link from links.txt \n Please wait..")
-
-link=Add_logo_to_video("Ái Nộ - Lạc - Masew - Rhymastic - Yling x Prod HuyLee Remix - Nhạc Hot Tiktok Căng Đét.mp4","logo-s.png","./Out/")
-print(link)
