@@ -8,13 +8,18 @@ from distutils.errors import LinkError
 from fileinput import filename
 from genericpath import isfile
 from shutil import which
+import sqlite3 as lite
 import shutil
 import subprocess
 import urllib
+from urllib import request
 from urllib.request import HTTPDefaultErrorHandler, urlopen ,urlretrieve
 from urllib.parse import quote, urlparse,urlsplit, unquote
 from requests.sessions import session   
 import youtube_dl
+import logging
+import boto3
+from botocore.exceptions import ClientError
 from ntpath import join
 from bs4 import BeautifulSoup
 import requests
@@ -326,9 +331,8 @@ def Download_file_from_TorrentFile(url,path_folder="."):
     if os.path.isfile(h.status().name)==True:
         return h.status().name
     elif os.path.isdir(h.status().name)==True:
-        path=h.status().name
-        pass
-
+        path=Get_list_files_from_folder(h.status().name,subdir=True)
+        return path
 
 def Get_direct_link_onedriver(list_link):
     new_list=[]  
@@ -451,9 +455,30 @@ def Upload_to_DooStream(path_file,api_key):
                    server_upload = json.loads(response)["result"]
                    upload_url=(server_upload+'?'+api_key)
                    response=requests.post(upload_url, data=m, headers=headers)
-                   return json.loads(response.text)["result"][0]["protected_embed"]
-                
+                   try:
+                        return json.loads(response.text)["result"][0]["protected_embed"]
+                   except:
+                       print("Something wrong \n File error")
     return False
+
+def Upload_to_Wasabi(file_name,bucket,access_key_id,secret_access_key,endpoint_url='https://s3.ap-northeast-1.wasabisys.com',  object_name=None):
+    
+    # If S3 object_name was not specified, use file_name
+    if object_name is None:
+        object_name = os.path.basename(file_name)
+
+    # Upload the file
+    s3_client = boto3.client('s3',
+                 endpoint_url= endpoint_url,
+                 aws_access_key_id=access_key_id,
+                 aws_secret_access_key=secret_access_key)
+    try:
+        response = s3_client.upload_file(file_name, bucket, object_name)
+       
+    except ClientError as e:
+        logging.error(e)
+        return False
+    return True
 
    
 def Uploads_to_DooStream(list_files,api_key):
@@ -526,6 +551,61 @@ def Download_file_from_direct_link(url,path_folder=".",filename=None):
         return False
     return local_filename
 
+
+def Get_GeckoDriver(path_dir="./web_driver"):
+    if platform.system()=='Windows':
+                if os.path.exists(path_dir+"/geckodriver.exe")==True:
+                    return path_dir+"/geckodriver.exe"
+                else :    
+                    os.makedirs(path_dir)
+                    if os.path.exists(path_dir)!=True:
+                      print("Cannot create folder to download Gecko Driver \n Please check! ") 
+                      return False
+                url_file_gecko="https://github.com/Kulteam/AutoLazy/blob/main/driver/firefox/win/chromedriver.exe?raw=true"
+                filename=Download_file_from_direct_link(url_file_gecko,path_folder=path_dir)
+                while get_digest(filename)!="c578a1899bfde2733424ba8b180b76826e62ba354206c322d4986ad854c35cf8":
+                    filename=Download_file_from_direct_link(url_file_gecko,path_folder=path_dir)
+                cmd="set PATH %PATH%;"+path_dir
+                subprocess.run(cmd,shell=True) 
+                if shutil.which("geckodriver")!=None:
+                       print("Install Gecko Driver for Firefox on your Windows computer is successfully")
+                       return filename
+                else:
+                        print("Somthing wrong while try to install Gecko Driver for Firefox on your Windows computer")   
+                        return False    
+    
+    if platform.system()=='Linux':  
+                if os.path.exists(path_dir+"/geckodriver")==True:
+                    if os.access(path_dir+"/geckodriver", os.X_OK)!=True:
+                        try:
+                            path_file=path_dir+"/geckodriver"
+                            os.chmod(path_file, 0o777)
+                        except:
+                            print("Cannot Chmod File \"geckodriver\" \n Please check! ")
+                            return False
+                    return path_dir+"/geckodriver"
+                else :    
+                    os.makedirs(path_dir)
+                    if os.path.exists(path_dir)!=True:
+                        print("Cannot create folder to download Gecko Driver \n Please check! ") 
+                        return False
+                    url_gecko_file="https://github.com/Kulteam/AutoLazy/blob/main/driver/firefox/linux/geckodriver?raw=true"
+                    filename=Download_file_from_direct_link(url_gecko_file,path_folder=path_dir)
+                    while get_digest(filename)!="ad3f822b64b91d91b913a26be958bf4aca7adc51c830623b220b689397150115":
+                        filename=Download_file_from_direct_link(url_gecko_file,path_folder=path_dir)
+                    chmod="chmod +x "+filename      
+                    subprocess.run(chmod,shell=True) 
+                    set_path="export PATH=$PATH:"+filename
+                    subprocess.run(set_path,shell=True)
+                    if shutil.which("geckodriver")!=None:
+                       print("Install Gecko Driver for Firefox on your Linux computer is successfully")
+                       return filename
+                    else:
+                        print("Somthing wrong while try to install Gecko Driver for Firefox on your Linux computer")  
+                        return False  
+    else:
+        print("Your system computer not support by this Script \n System Support: \n -Windows \n -Linux ")
+        return False    
 
 def Get_FFMPEG(path_dir="./ffmpeg"):
     if platform.system()=='Windows':
@@ -643,7 +723,8 @@ def Join_video(list_path,output="out_",path_ffmpeg="ffmpeg"):
         filename=id_generator()+".txt"
         with open(filename,'w+',encoding = 'utf-8') as file:
             for path in list_path:
-                file.write("file '{}'\n").format(path)
+                path=("file '{}' \n").format(path)
+                file.write(path)
         file.close()
         if platform.system()=='Linux':    
             cmd=("'{}' -y -f concat -safe 0 -i '{}' -c copy '{}'").format(path_ffmpeg,filename,output)
@@ -655,23 +736,30 @@ def Join_video(list_path,output="out_",path_ffmpeg="ffmpeg"):
         
         try:
             subprocess.run(cmd,shell=True)
+            os.remove(filename)
         except :
             print("Somthing wrong.Please check !")
             return False    
         if os.path.exists(output)==True:
             return os.path.normpath(output)
         return False
-
+   
     list_video=[]
     for path in list_path:
         if is_video_file(path)==True:
             if os.path.exists(path)==True:
                 list_video.append(path)
+                
+               
     if is_same_type_file(list_video)==True:
         list_path=list_video
-        if len(list_path)<=1:
+       
+        if len(list_path)==1:
             print("You need 2 or more videos to join")
-            return False
+            return list_path[0]
+        elif len(list_path)==None:
+              print("No videos to join")  
+              return False
     if output=="out_":
         output="out_"+Path(list_path[0]).suffix       
     elif os.path.isfile(output)==True:
@@ -821,13 +909,8 @@ def Find_file_torrent_from_urls(list_url):
     else:
         return list_urls_file      
 
-def Get_basic_info_141JAV(url_141jav_com,path_logo,api_key):
-    def Get_emble_url_video(torrent_url):
-        torrent_file=Download_file_from_TorrentFile(torrent_url)
-        video_with_logo=Add_logo_to_video(torrent_file,path_logo)
-        return Upload_to_DooStream(video_with_logo,api_key)
-
-
+def Get_basic_info_141JAV(url_141jav_com):
+    
     try:
             page = requests.get(url_141jav_com)
             soup = BeautifulSoup(page.content, 'html.parser')
@@ -847,8 +930,122 @@ def Get_basic_info_141JAV(url_141jav_com,path_logo,api_key):
     except:
         print("Somthing wrong while get infomation from 141jav.com \n Please check again ")
         return False    
-    return {"video_title":video_title,"video_code":video_code,"actress":actress,"video_image":video_image,"video_tags":video_tags,"video_torrent_file":url_torrent,"embed_link":Get_emble_url_video(url_torrent)}
+    return {"video_title":video_title,"video_code":video_code,"actress":actress,"video_image":video_image,"video_tags":video_tags,"video_torrent_url":url_torrent}
 
+def is_Upload(video_code,sqlite_file):
+
+    path = os.path.normpath(sqlite_file)
+    connect = lite.connect(path)
+ 
+    with connect:
+        cur = connect.cursor()    
+        sql="SELECT EXISTS(SELECT 1 FROM VIDEO_INFO WHERE CODE=\"{}\");".format(video_code)
+        cur.execute(sql)
+        data = cur.fetchone()
+        if data!=(0,):
+            return False
+        return True
+
+def Get_MediaInfo(path_dir="./MediaInfo"):
+    if platform.system()=='Windows':
+                if os.path.exists(path_dir+"/MediaInfo.exe")==True:
+                    return path_dir+"/MediaInfo.exe"
+                else :    
+                    os.makedirs(path_dir)
+                    if os.path.exists(path_dir)!=True:
+                      print("Cannot create folder to download MediaInfo \n Please check! ") 
+                      return False
+                url_file="https://github.com/Kulteam/AutoLazy/blob/main/mediainfo/win/MediaInfo_CLI_21.09_Windows_i386.zip?raw=true"
+                filename=Download_file_from_direct_link(url_file,path_folder=path_dir)
+                while get_digest(filename)!="a8341a4b3db85d55d5ee81b0978b3d801eb221a14f15d0487f92fb7f387a446b":
+                    filename=Download_file_from_direct_link(url_file,path_folder=path_dir)
+                shutil.unpack_archive(filename,path_dir)
+                cmd="set PATH %PATH%;"+path_dir
+                subprocess.run(cmd,shell=True) 
+                if shutil.which("mediainfo")!=None:
+                       print("Install  MediaInfo  on your Windows computer is successfully")
+                       return os.path.normpath(path_dir+"/mediainfo")
+                else:
+                        print("Somthing wrong while try to install MediaInfo on your Windows computer")   
+                        return False    
+    
+    if platform.system()=='Linux':  
+                if os.path.exists(path_dir+"/mediainfo")==True:
+                    if os.access(path_dir+"/mediainfo", os.X_OK)!=True:
+                        try:
+                            path_file=path_dir+"/mediainfo"
+                            os.chmod(path_file, 0o777)
+                        except:
+                            print("Cannot Chmod File \"mediainfo\" \n Please check! ")
+                            return False
+                    return os.path.normpath(path_dir+"/mediainfo")
+                else :    
+                    os.makedirs(path_dir)
+                    if os.path.exists(path_dir)!=True:
+                        print("Cannot create folder to download MediaInfo \n Please check! ") 
+                        return False
+                    url_file="https://github.com/Kulteam/AutoLazy/blob/main/mediainfo/linux/MediaInfo_CLI_21.09_Linux_Portal_x64.zip?raw=true"
+                    filename=Download_file_from_direct_link(url_file,path_folder=path_dir)
+                    while get_digest(filename)!="fdf7d301597fd9bbc0092acc67d5b053485279e9c072e50903357e91ee01804e":
+                        filename=Download_file_from_direct_link(url_file,path_folder=path_dir)
+                    shutil.unpack_archive(filename,path_dir)
+                    #Set path lib on Linux
+                    path_lib="LD_LIBRARY_PATH=$LD_LIBRARY_PATH:{}/.libs".format(path_dir)
+                    export="export LD_LIBRARY_PATH"
+                    subprocess.run(path_lib,shell=True)  
+                    subprocess.run(export,shell=True)  
+                    chmod="chmod -R +x {}".format(path_dir)      
+                    subprocess.run(chmod,shell=True) 
+                    #set_path="export PATH=$PATH:{}/mediainfo".format(path_dir)
+                    #subprocess.run(set_path,shell=True)
+                    if os.path.exists(path_dir+"/mediainfo")==True:
+                       print("Install MediaInfo on your Linux computer is successfully")
+                       return os.path.normpath(path_dir+"/mediainfo")
+                    else:
+                        print("Somthing wrong while try to install MediaInfo on your Linux computer")  
+                        return False  
+    else:
+        print("Your system computer not support by this Script \n System Support: \n -Windows \n -Linux ")
+        return False    
+
+def Get_video_stream_duration(path_input,path_mediainfo="mediainfo"):
+    def run_mediainfo():
+        if platform.system()=='Linux':
+            cmd="'{}' --Inform=\"Video;%Duration%\" '{}'".format(path_mediainfo,path_input)
+        elif platform.system()=='Windows':
+            cmd="\"{}\" --Inform=\"Video;%Duration%\" \"{}\"".format(path_mediainfo,path_input) 
+        else:
+            print("You system not support by this script \n System support: \n -Linux -Windows")
+            return False
+        try:
+           
+            result = subprocess.run(cmd,shell=True,stdout=subprocess.PIPE) 
+            result=''.join([n for n in str(result.stdout) if n.isdigit()])
+            return (int(result)/1000000)
+            
+        except :
+            print("Somthing wrong.Please check ! \n Video cannot read or other problems")
+            return False   
+
+
+
+    path_input=os.path.normpath(path_input)
+    if os.path.exists(path_input)==True:
+        if is_video_file(path_input)==True:
+            if path_mediainfo=="mediainfo":
+                if shutil.which(path_mediainfo)!=None:
+                    return run_mediainfo()
+                path_mediainfo=Get_MediaInfo()
+                return run_mediainfo
+            path_mediainfo=path_mediainfo
+            return run_mediainfo()
+    return False        
+
+
+def Find_Infomation_AVMovie(av_code):
+    page=requests.get("https://www.javlibrary.com/en/vl_searchbyid.php?keyword="+av_code)
+    
+    
 
 
 
@@ -862,3 +1059,6 @@ def Get_info_video_141JAV(url):
 
                                                     
 print("Get link from links.txt \n Please wait..")
+
+print(Get_MediaInfo())
+print(Get_video_stream_duration("./Lỗi Duyên Tại Ý Trời (Ciray Remix) - TVK x Huỳnh Mộng Như _ Họa giọt lệ buồn xót thương thân em.mkv",path_mediainfo="MediaInfo/mediainfo"))
